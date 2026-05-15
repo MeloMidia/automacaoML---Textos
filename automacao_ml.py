@@ -154,10 +154,21 @@ def get_or_create_textos_folder(drive, client_folder_id):
 
 
 def list_existing_docs(drive, folder_id):
-    """Retorna um set com os nomes dos arquivos já existentes em TEXTOS."""
+    """Retorna um set com os nomes dos arquivos já existentes em TEXTOS (com paginação)."""
     q = f"'{folder_id}' in parents and trashed=false"
-    r = drive.files().list(q=q, fields="files(name)").execute()
-    return {f["name"] for f in r.get("files", [])}
+    names = set()
+    page_token = None
+    while True:
+        kwargs = dict(q=q, fields="nextPageToken, files(name)", pageSize=1000)
+        if page_token:
+            kwargs["pageToken"] = page_token
+        r = drive.files().list(**kwargs).execute()
+        for f in r.get("files", []):
+            names.add(f["name"])
+        page_token = r.get("nextPageToken")
+        if not page_token:
+            break
+    return names
 
 
 # ══════════════════════════════════════════════════════════
@@ -363,9 +374,15 @@ Nosso compromisso é entregar produtos de procedência, envio rápido e atendime
                 print(f"\n  ⏳ Rate limit (429) — aguardando {espera}s "
                       f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
                 time.sleep(espera)
+            elif "connect" in erro.lower() or "timeout" in erro.lower() or "read" in erro.lower() or "50" in erro:
+                espera = 15
+                print(f"\n  ⏳ Erro de conexão/API ({erro[:30]}...) — aguardando {espera}s "
+                      f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
+                time.sleep(espera)
             else:
+                print(f"\n  ❌ Erro inesperado no Groq: {erro}")
                 raise
-    raise Exception(f"Falhou após {MAX_TENTATIVAS} tentativas por rate limit.")
+    raise Exception(f"Falhou após {MAX_TENTATIVAS} tentativas.")
 
 
 # ══════════════════════════════════════════════════════════
@@ -422,10 +439,24 @@ def process_client(client_name, client_folder_id, drive, sheets, docs):
     if not products:
         return 0, 0
 
+    # Mostra os primeiros nomes lidos da planilha para conferência
+    for p in products[:5]:
+        print(f"       → {p['produto'][:60]}")
+    if len(products) > 5:
+        print(f"       ... e mais {len(products) - 5}")
+
     # Pasta TEXTOS
     textos_id = get_or_create_textos_folder(drive, client_folder_id)
     existing  = list_existing_docs(drive, textos_id)
     print(f"  📝 {len(existing)} docs já existentes em TEXTOS (serão pulados)")
+
+    # Se houver docs existentes, mostra os primeiros para diagnóstico
+    if existing:
+        sample = sorted(existing)[:5]
+        for name in sample:
+            print(f"       já existe: {name[:60]}")
+        if len(existing) > 5:
+            print(f"       ... e mais {len(existing) - 5}")
 
     created = skipped = errors = 0
 
