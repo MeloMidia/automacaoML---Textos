@@ -34,9 +34,17 @@ import automacao_ml as aml  # noqa
 app = FastAPI(title="AutomacaoML Web")
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
-_APP_USER    = os.getenv("APP_USER", "team")
-_APP_PASS    = os.getenv("APP_PASSWORD", "")
-_SECRET_KEY  = os.getenv("SECRET_KEY", secrets.token_hex(32))
+_APP_USER    = os.getenv("APP_USER", "team").strip()
+_APP_PASS    = os.getenv("APP_PASSWORD", "").strip()
+_SECRET_KEY  = os.getenv("SECRET_KEY", secrets.token_hex(32)).strip()
+
+print(f"\n--- CONFIGURAÇÃO DE ACESSO ---")
+print(f"Usuário: '{_APP_USER}'")
+if not _APP_PASS:
+    print("Senha: NÃO CONFIGURADA (Acesso livre)")
+else:
+    print("Senha: CONFIGURADA")
+print(f"------------------------------\n")
 
 _jobs: dict[str, queue.Queue] = {}
 _running = False
