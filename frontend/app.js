@@ -1,0 +1,335 @@
+/* =========================================================
+   AutomacaoML — App Logic (app.js)
+   ========================================================= */
+
+const App = (() => {
+
+  // ── Estado ──────────────────────────────────────────────
+  let _clients = [];          // lista completa de clientes do Drive
+  let _selected = new Set();  // IDs dos clientes selecionados
+  let _running = false;       // bloqueia múltiplos runs simultâneos
+  let _eventSource = null;    // conexão SSE ativa
+
+  // ── Elementos DOM ───────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  const el = {
+    clientsList:    () => $('clients-list'),
+    clientsCount:   () => $('clients-count'),
+    selectedCount:  () => $('selected-count'),
+    btnRun:         () => $('btn-run'),
+    btnRunLabel:    () => $('btn-run-label'),
+    terminal:       () => $('terminal-output'),
+    statusBadge:    () => $('status-badge'),
+    statusLabel:    () => $('status-badge').querySelector('.status-label'),
+    resultsOverlay: () => $('results-overlay'),
+    metricCreated:  () => $('metric-created'),
+    metricSkipped:  () => $('metric-skipped'),
+    errorToast:     () => $('error-toast'),
+    errorMessage:   () => $('error-message'),
+  };
+
+  // ── Inicialização ────────────────────────────────────────
+  async function init() {
+    await loadClients();
+  }
+
+  // ── Carregar clientes do Drive ───────────────────────────
+  async function loadClients() {
+    renderLoadingState();
+    try {
+      const res = await fetch('/api/clients');
+      const data = await res.json();
+
+      if (!data.ok) {
+        renderErrorState(data.error || 'Falha ao conectar com o Google Drive.');
+        return;
+      }
+
+      _clients = data.clients || [];
+      el.clientsCount().textContent = _clients.length;
+
+      if (_clients.length === 0) {
+        renderEmptyState();
+      } else {
+        renderClientsList();
+      }
+    } catch (err) {
+      renderErrorState('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+    }
+  }
+
+  // ── Renderizar estados da lista ──────────────────────────
+  function renderLoadingState() {
+    el.clientsList().innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <span>Conectando ao Google Drive...</span>
+      </div>`;
+  }
+
+  function renderErrorState(msg) {
+    el.clientsList().innerHTML = `
+      <div class="error-state">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>${escapeHtml(msg)}</span>
+      </div>`;
+  }
+
+  function renderEmptyState() {
+    el.clientsList().innerHTML = `
+      <div class="empty-state">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Nenhum cliente encontrado na pasta MERCADO LIVRE do Drive.</span>
+      </div>`;
+  }
+
+  function renderClientsList() {
+    const list = el.clientsList();
+    list.innerHTML = '';
+    _clients.forEach(client => {
+      const item = document.createElement('div');
+      item.className = 'client-item';
+      item.dataset.id = client.id;
+      item.innerHTML = `
+        <input type="checkbox" class="client-checkbox" id="chk-${client.id}"
+               onchange="App.toggleClient('${client.id}')" />
+        <label class="client-name" for="chk-${client.id}" title="${escapeHtml(client.name)}">
+          ${escapeHtml(client.name)}
+        </label>`;
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+          toggleClient(client.id);
+        }
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ── Seleção de clientes ──────────────────────────────────
+  function toggleClient(id) {
+    if (_selected.has(id)) {
+      _selected.delete(id);
+    } else {
+      _selected.add(id);
+    }
+    updateSelectionUI();
+  }
+
+  function selectAll() {
+    _clients.forEach(c => _selected.add(c.id));
+    updateSelectionUI();
+  }
+
+  function clearAll() {
+    _selected.clear();
+    updateSelectionUI();
+  }
+
+  function updateSelectionUI() {
+    // Checkboxes
+    _clients.forEach(client => {
+      const chk = document.getElementById(`chk-${client.id}`);
+      const item = chk?.closest('.client-item');
+      if (chk) chk.checked = _selected.has(client.id);
+      if (item) item.classList.toggle('selected', _selected.has(client.id));
+    });
+
+    // Contador
+    el.selectedCount().textContent = _selected.size;
+
+    // Botão run
+    el.btnRun().disabled = _selected.size === 0 || _running;
+  }
+
+  async function run() {
+    if (_running || _selected.size === 0) return;
+
+    const selectedClients = _clients.filter(c => _selected.has(c.id));
+    const delay = parseInt($('input-delay')?.value ?? '45', 10) || 45;
+
+    // UI → estado running
+    _running = true;
+    setStatus('running', 'Processando...');
+    el.btnRun().classList.add('loading');
+    el.btnRunLabel().textContent = 'Processando...';
+    el.btnRun().disabled = true;
+
+    // Limpa terminal e mostra início
+    clearTerminal();
+    appendLog(`▶  Iniciando para ${selectedClients.length} cliente(s)... (delay: ${delay}s/produto)`, 'log-info');
+    appendLog('', 'log-dim');
+
+    try {
+      // Dispara o job
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clients: selectedClients, delay_seconds: delay }),
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        finishWithError(data.error || 'Erro ao iniciar automação.');
+        return;
+      }
+
+      // Conecta ao stream SSE
+      connectStream(data.job_id);
+
+    } catch (err) {
+      finishWithError('Não foi possível conectar ao servidor.');
+    }
+  }
+
+  // ── SSE Stream ───────────────────────────────────────────
+  function connectStream(jobId) {
+    if (_eventSource) _eventSource.close();
+
+    _eventSource = new EventSource(`/api/stream/${jobId}`);
+
+    _eventSource.onmessage = (e) => {
+      let event;
+      try { event = JSON.parse(e.data); } catch { return; }
+
+      switch (event.type) {
+        case 'log':
+          appendLog(event.text);
+          break;
+        case 'done':
+          finishSuccess(event.created, event.skipped);
+          break;
+        case 'error':
+          finishWithError(event.message);
+          break;
+        case 'ping':
+          // keepalive — ignora
+          break;
+      }
+    };
+
+    _eventSource.onerror = () => {
+      if (_running) finishWithError('Conexão com o servidor foi interrompida.');
+    };
+  }
+
+  // ── Estados finais ───────────────────────────────────────
+  function finishSuccess(created, skipped) {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    _running = false;
+
+    appendLog('', 'log-dim');
+    appendLog(`✅  Concluído! ${created} criados | ${skipped} pulados`, 'log-success');
+
+    setStatus('done', 'Concluído');
+    resetRunButton();
+    showResults(created, skipped);
+  }
+
+  function finishWithError(msg) {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    _running = false;
+
+    appendLog('', 'log-dim');
+    appendLog(`❌  Erro: ${msg}`, 'log-error');
+
+    setStatus('error', 'Erro');
+    resetRunButton();
+    showError(msg);
+  }
+
+  function resetRunButton() {
+    el.btnRun().classList.remove('loading');
+    el.btnRunLabel().textContent = 'Iniciar Automação';
+    el.btnRun().disabled = _selected.size === 0;
+  }
+
+  // ── Terminal ─────────────────────────────────────────────
+  function clearTerminal() {
+    el.terminal().innerHTML = '';
+  }
+
+  function appendLog(text, forceClass = null) {
+    const span = document.createElement('span');
+    span.className = `log-line ${forceClass || classifyLine(text)}`;
+    span.textContent = text;
+
+    const term = el.terminal();
+    // Remove placeholder se existir
+    const placeholder = term.querySelector('.terminal-placeholder');
+    if (placeholder) placeholder.remove();
+
+    term.appendChild(span);
+    // Auto-scroll
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function classifyLine(text) {
+    if (!text || text.trim() === '') return 'log-dim';
+    if (/✅|Autenticado|Concluído|criados/.test(text)) return 'log-success';
+    if (/❌|Erro|erro|Error/.test(text))               return 'log-error';
+    if (/⏳|aguardando|Rate limit/.test(text))          return 'log-warning';
+    if (/⏭️|Já existe|pulados/.test(text))             return 'log-warning';
+    if (/📊|📁|📝|📦|👥|🔑/.test(text))               return 'log-info';
+    if (/✨|Gerando/.test(text))                        return 'log-generating';
+    if (/^[═─▶\s]+$/.test(text))                        return 'log-separator';
+    return 'log-default';
+  }
+
+  // ── Status badge ─────────────────────────────────────────
+  function setStatus(type, label) {
+    const badge = el.statusBadge();
+    badge.className = `status-badge status-${type}`;
+    el.statusLabel().textContent = label;
+  }
+
+  // ── Resultados ───────────────────────────────────────────
+  function showResults(created, skipped) {
+    el.metricCreated().textContent = created;
+    el.metricSkipped().textContent = skipped;
+    el.resultsOverlay().classList.remove('hidden');
+  }
+
+  function closeResults() {
+    el.resultsOverlay().classList.add('hidden');
+  }
+
+  // ── Toast de erro ─────────────────────────────────────────
+  function showError(msg) {
+    el.errorMessage().textContent = msg;
+    el.errorToast().classList.remove('hidden');
+    setTimeout(() => el.errorToast().classList.add('hidden'), 7000);
+  }
+
+  function closeError() {
+    el.errorToast().classList.add('hidden');
+  }
+
+  // ── Utils ────────────────────────────────────────────────
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Inicializa ao carregar ───────────────────────────────
+  document.addEventListener('DOMContentLoaded', init);
+
+  // ── API pública ──────────────────────────────────────────
+  return {
+    toggleClient,
+    selectAll,
+    clearAll,
+    run,
+    clearTerminal,
+    closeResults,
+    closeError,
+  };
+
+})();

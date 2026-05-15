@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AutomacaoML — Gerador de Anúncios ML</title>
+  <meta name="description" content="Interface web para geração automática de anúncios Mercado Livre via IA." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- ═══ HEADER ═══ -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">AutomacaoML</span>
+          <span class="logo-subtitle">Gerador de Anúncios via IA</span>
+        </div>
+      </div>
+      <div id="status-badge" class="status-badge status-idle">
+        <span class="status-dot"></span>
+        <span class="status-label">Aguardando</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+
+    <!-- ─── Painel Esquerdo — Clientes ─── -->
+    <section class="panel panel-clients" id="panel-clients">
+      <div class="panel-header">
+        <div class="panel-title-row">
+          <h2 class="panel-title">Clientes</h2>
+          <span id="clients-count" class="badge">0</span>
+        </div>
+        <p class="panel-subtitle">Selecione os clientes para processar</p>
+      </div>
+
+      <!-- Ações rápidas -->
+      <div class="quick-actions">
+        <button id="btn-select-all" class="btn btn-ghost btn-sm" onclick="App.selectAll()">
+          Selecionar todos
+        </button>
+        <button id="btn-clear-all" class="btn btn-ghost btn-sm" onclick="App.clearAll()">
+          Limpar seleção
+        </button>
+      </div>
+
+      <!-- Lista de clientes -->
+      <div id="clients-list" class="clients-list">
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span>Conectando ao Google Drive...</span>
+        </div>
+      </div>
+
+      <!-- Configurações de delay -->
+      <div class="settings-area">
+        <div class="settings-row">
+          <label class="settings-label" for="input-delay">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Delay entre produtos
+          </label>
+          <div class="settings-control">
+            <input type="number" id="input-delay" class="delay-input"
+                   min="10" max="300" value="45" step="5" />
+            <span class="delay-unit">seg</span>
+          </div>
+        </div>
+        <p class="settings-hint">Groq free tier: recomendado &ge;45s para evitar rate limit</p>
+      </div>
+
+      <!-- Botão Run -->
+      <div class="run-area">
+        <div id="selected-info" class="selected-info">
+          <span id="selected-count">0</span> cliente(s) selecionado(s)
+        </div>
+        <button id="btn-run" class="btn btn-primary btn-run" onclick="App.run()" disabled>
+          <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span id="btn-run-label">Iniciar Automação</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ─── Painel Direito — Terminal ─── -->
+    <section class="panel panel-terminal" id="panel-terminal">
+      <div class="panel-header">
+        <div class="panel-title-row">
+          <h2 class="panel-title">Terminal</h2>
+          <div class="terminal-controls">
+            <button class="btn btn-ghost btn-sm" onclick="App.clearTerminal()" title="Limpar terminal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p class="panel-subtitle">Logs em tempo real</p>
+      </div>
+
+      <!-- Output -->
+      <div id="terminal-output" class="terminal-output">
+        <div class="terminal-placeholder">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <p>Selecione os clientes e clique em <strong>Iniciar Automação</strong></p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ RESULTS MODAL ═══ -->
+  <div id="results-overlay" class="results-overlay hidden" onclick="App.closeResults()">
+    <div class="results-modal" onclick="event.stopPropagation()">
+      <div class="results-header">
+        <div class="results-icon results-icon-success">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h3 class="results-title">Automação Concluída!</h3>
+      </div>
+      <div class="results-metrics">
+        <div class="metric-card metric-created">
+          <span class="metric-value" id="metric-created">0</span>
+          <span class="metric-label">Criados</span>
+        </div>
+        <div class="metric-card metric-skipped">
+          <span class="metric-value" id="metric-skipped">0</span>
+          <span class="metric-label">Pulados</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="App.closeResults()">Fechar</button>
+    </div>
+  </div>
+
+  <!-- ═══ ERROR TOAST ═══ -->
+  <div id="error-toast" class="error-toast hidden">
+    <div class="toast-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+    </div>
+    <span id="error-message">Erro desconhecido</span>
+    <button class="toast-close" onclick="App.closeError()">✕</button>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
