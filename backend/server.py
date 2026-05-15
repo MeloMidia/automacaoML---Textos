@@ -94,7 +94,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AutomacaoML — Acesso Seguro</title>
+  <title>Melo Midia — Automação de Textos</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -155,19 +155,24 @@ LOGIN_HTML = """<!DOCTYPE html>
     
     .logo { text-align: center; margin-bottom: 40px; }
     .logo-icon {
-      width: 56px; height: 56px;
-      background: linear-gradient(135deg, #7c3aed, #06b6d4);
-      border-radius: 16px;
+      width: 72px; height: 72px;
+      border-radius: 12px;
       display: inline-flex; align-items: center; justify-content: center;
       margin-bottom: 16px;
-      box-shadow: 0 0 24px rgba(124, 58, 237, 0.3);
+      box-shadow: 0 0 24px rgba(124, 58, 237, 0.2);
       position: relative;
+      overflow: hidden;
+    }
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .logo-icon::after {
       content: '';
       position: absolute; inset: 0;
       border-radius: inherit;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .logo-title { display: block; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
     .logo-sub { display: block; font-size: 0.85rem; color: #94a3b8; margin-top: 6px; font-weight: 400; }
@@ -268,12 +273,10 @@ LOGIN_HTML = """<!DOCTYPE html>
   <div class="card">
     <div class="logo">
       <div class="logo-icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
+        <img src="/static/logo.png" alt="Melo Midia Logo"/>
       </div>
-      <span class="logo-title">AutomacaoML</span>
-      <span class="logo-sub">Gerador Automático de Anúncios</span>
+      <span class="logo-title">Melo Midia</span>
+      <span class="logo-sub">Automação de Textos</span>
     </div>
     
     {error_block}

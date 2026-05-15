@@ -131,16 +131,15 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
 }
 
 .logo-icon {
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  width: 48px;
+  height: 48px;
   border-radius: 12px;
   display: grid;
   place-items: center;
-  color: #fff;
   box-shadow: 0 0 20px var(--primary-glow);
   flex-shrink: 0;
   position: relative;
+  overflow: hidden;
 }
 .logo-icon::after {
   content: '';
