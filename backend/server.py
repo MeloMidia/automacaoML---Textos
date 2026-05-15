@@ -94,94 +94,200 @@ LOGIN_HTML = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AutomacaoML — Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <title>AutomacaoML — Acesso Seguro</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', sans-serif;
-      background: #0f1117;
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #07070f;
       color: #e2e8f0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(124, 58, 237, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(6, 182, 212, 0.1) 0%, transparent 60%);
     }
+    /* Animated Orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      animation: float 20s infinite ease-in-out alternate;
+    }
+    .orb-1 {
+      width: 400px; height: 400px;
+      background: rgba(124, 58, 237, 0.15);
+      top: -100px; left: -100px;
+    }
+    .orb-2 {
+      width: 300px; height: 300px;
+      background: rgba(6, 182, 212, 0.1);
+      bottom: -50px; right: -50px;
+      animation-delay: -5s;
+    }
+    @keyframes float {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(50px, 30px) scale(1.1); }
+    }
+    
     .card {
-      background: #1a1d27;
-      border: 1px solid #2d3148;
-      border-radius: 16px;
-      padding: 40px;
+      background: rgba(16, 16, 30, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 48px 40px;
       width: 100%;
-      max-width: 380px;
+      max-width: 420px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      animation: card-in 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
     }
-    .logo { text-align: center; margin-bottom: 32px; }
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    
+    .logo { text-align: center; margin-bottom: 40px; }
     .logo-icon {
-      width: 52px; height: 52px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border-radius: 14px;
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      border-radius: 16px;
       display: inline-flex; align-items: center; justify-content: center;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 24px rgba(124, 58, 237, 0.3);
+      position: relative;
     }
-    .logo-title { display: block; font-size: 1.25rem; font-weight: 600; }
-    .logo-sub { display: block; font-size: 0.8rem; color: #64748b; margin-top: 4px; }
-    label { display: block; font-size: 0.8rem; font-weight: 500; color: #94a3b8; margin-bottom: 6px; }
+    .logo-icon::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .logo-title { display: block; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .logo-sub { display: block; font-size: 0.85rem; color: #94a3b8; margin-top: 6px; font-weight: 400; }
+    
+    .input-group { position: relative; margin-bottom: 20px; }
+    label { 
+      position: absolute;
+      left: 16px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem; font-weight: 400; color: #64748b;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      background: transparent;
+      padding: 0 4px;
+    }
     input[type=text], input[type=password] {
       width: 100%;
-      background: #0f1117;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
       color: #e2e8f0;
-      font-size: 0.9rem;
-      padding: 10px 14px;
+      font-size: 0.95rem;
+      padding: 16px;
       outline: none;
-      margin-bottom: 16px;
-      transition: border-color .2s;
+      transition: all 0.25s ease;
+      font-family: inherit;
     }
-    input:focus { border-color: #6366f1; }
+    input:focus, input:not(:placeholder-shown) {
+      background: rgba(0, 0, 0, 0.4);
+    }
+    input:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+    }
+    input:focus + label, input:not(:placeholder-shown) + label {
+      top: 0; transform: translateY(-50%) scale(0.85);
+      background: #11111d; /* Matches input border intersection */
+      color: #9d5cf6;
+      border-radius: 4px;
+    }
+    input:not(:focus):not(:placeholder-shown) + label {
+      color: #94a3b8;
+    }
+    
     button {
       width: 100%;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border: none;
-      border-radius: 8px;
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
       color: #fff;
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 600;
-      padding: 12px;
+      padding: 16px;
       cursor: pointer;
-      margin-top: 8px;
-      transition: opacity .2s;
+      margin-top: 12px;
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 4px 20px rgba(124, 58, 237, 0.3);
+      position: relative;
+      overflow: hidden;
     }
-    button:hover { opacity: .9; }
+    button::after {
+      content: '';
+      position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transform: skewX(-20deg);
+      transition: 0.5s;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(124, 58, 237, 0.4);
+    }
+    button:hover::after { left: 150%; }
+    button:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3); }
+    
     .error {
-      background: #2d1b1b;
-      border: 1px solid #7f1d1d;
-      border-radius: 8px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
       color: #fca5a5;
-      font-size: 0.82rem;
-      padding: 10px 14px;
-      margin-bottom: 16px;
+      font-size: 0.85rem;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      display: flex; align-items: center; gap: 8px;
+      animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-1px, 0, 0); }
+      20%, 80% { transform: translate3d(2px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
     }
   </style>
 </head>
 <body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
   <div class="card">
     <div class="logo">
       <div class="logo-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
         </svg>
       </div>
       <span class="logo-title">AutomacaoML</span>
-      <span class="logo-sub">Gerador de Anúncios via IA</span>
+      <span class="logo-sub">Gerador Automático de Anúncios</span>
     </div>
+    
     {error_block}
+    
     <form method="post" action="/login">
-      <label for="u">Usuário</label>
-      <input type="text" id="u" name="username" autocomplete="username" required/>
-      <label for="p">Senha</label>
-      <input type="password" id="p" name="password" autocomplete="current-password" required/>
-      <button type="submit">Entrar</button>
+      <div class="input-group">
+        <input type="text" id="u" name="username" autocomplete="username" placeholder=" " required/>
+        <label for="u">Usuário</label>
+      </div>
+      <div class="input-group">
+        <input type="password" id="p" name="password" autocomplete="current-password" placeholder=" " required/>
+        <label for="p">Senha</label>
+      </div>
+      <button type="submit">Entrar no Sistema</button>
     </form>
   </div>
 </body>
