@@ -195,9 +195,15 @@ def login_page():
 
 @app.post("/login")
 def login(username: str = Form(...), password: str = Form(...)):
-    ok_user = secrets.compare_digest(username.encode(), _APP_USER.encode())
+    # Username check (case-insensitive for convenience)
+    ok_user = secrets.compare_digest(username.strip().lower().encode(), _APP_USER.lower().encode())
+    # Password check (case-sensitive)
     ok_pass = secrets.compare_digest(password.encode(), _APP_PASS.encode()) if _APP_PASS else True
+    
     if not (ok_user and ok_pass):
+        print(f"ALERTA: Tentativa de login falhou.")
+        print(f"  - Usuário fornecido: '{username}'")
+        print(f"  - Usuário esperado: '{_APP_USER}'")
         error = '<div class="error">Usuário ou senha incorretos.</div>'
         return HTMLResponse(LOGIN_HTML.replace("{error_block}", error), status_code=401)
     response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
