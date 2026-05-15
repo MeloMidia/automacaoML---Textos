@@ -39,6 +39,15 @@ from googleapiclient.http import MediaIoBaseDownload
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
+# Modelo do Groq a usar — troque aqui quando precisar mudar
+# Modelos gratuitos disponíveis: https://console.groq.com/docs/models
+# Exemplos:
+#   "openai/gpt-oss-20b"         ← atual
+#   "llama-3.3-70b-versatile"    ← Llama 3.3 70B (Groq free tier)
+#   "llama3-70b-8192"            ← Llama 3 70B
+#   "gemma2-9b-it"               ← Google Gemma 2 9B
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+
 # ID da pasta MERCADO LIVRE no Google Drive (fixo — não precisa alterar)
 PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
 
@@ -358,7 +367,7 @@ Nosso compromisso é entregar produtos de procedência, envio rápido e atendime
     for tentativa in range(1, MAX_TENTATIVAS + 1):
         try:
             response = client.chat.completions.create(
-                model="openai/gpt-oss-20b",
+                model=GROQ_MODEL,
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt},
@@ -399,6 +408,10 @@ def create_google_doc(drive, docs, title, content, folder_id):
     }
     doc = drive.files().create(body=meta, fields="id").execute()
     doc_id = doc["id"]
+
+    # Garante que haja texto para inserir, evitando erro 400 da API do Docs
+    if not content or not str(content).strip():
+        content = "[ERRO: A inteligência artificial não retornou nenhum texto para este anúncio. Verifique o prompt ou os dados do produto.]"
 
     # Insere o texto
     docs.documents().batchUpdate(
