@@ -44,8 +44,9 @@ __pycache__/
 | Variável | Valor |
 |---|---|
 | `GROQ_API_KEY` | Sua chave do Groq |
-| `APP_USER` | `team` (ou o nome que quiser) |
+| `APP_USER` | `timemelo` (ou o nome que quiser) |
 | `APP_PASSWORD` | A senha que o time vai usar |
+| `SECRET_KEY` | Uma string aleatória longa (qualquer texto longo serve) |
 | `TOKEN_PICKLE_B64` | O valor gerado no Passo 1 |
 
 4. O Railway detecta o `Dockerfile` automaticamente e faz o deploy

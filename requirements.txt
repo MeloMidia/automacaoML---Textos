@@ -6,3 +6,5 @@ groq
 openpyxl
 fastapi
 uvicorn[standard]
+itsdangerous
+python-multipart
