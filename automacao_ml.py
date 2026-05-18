@@ -185,33 +185,8 @@ def list_existing_docs(drive, folder_id):
 #  LEITURA DA PLANILHA
 # ══════════════════════════════════════════════════════════
 
-def read_products_from_spreadsheet(drive, sheets, file_info):
-    """Lê os produtos da planilha (Google Sheets nativo ou .xlsx)."""
-    fid   = file_info["id"]
-    mime  = file_info["mimeType"]
-
-    if mime == "application/vnd.google-apps.spreadsheet":
-        # ── Google Sheets nativo ──────────────────────────
-        result = sheets.spreadsheets().values().get(
-            spreadsheetId=fid,
-            range=f"A{LINHA_INICIO}:Z2000"
-        ).execute()
-        rows = result.get("values", [])
-    else:
-        # ── Arquivo .xlsx ─────────────────────────────────
-        request = drive.files().get_media(fileId=fid)
-        buf = io.BytesIO()
-        dl = MediaIoBaseDownload(buf, request)
-        done = False
-        while not done:
-            _, done = dl.next_chunk()
-        buf.seek(0)
-        wb = openpyxl.load_workbook(buf, data_only=True)
-        ws = wb.active
-        rows = []
-        for row in ws.iter_rows(min_row=LINHA_INICIO, values_only=True):
-            rows.append([str(c) if c is not None else "" for c in row])
-
+def _parse_rows(rows):
+    """Converte linhas brutas em lista de produtos."""
     products = []
     for row in rows:
         if len(row) <= COL_PRODUTO:
@@ -235,6 +210,50 @@ def read_products_from_spreadsheet(drive, sheets, file_info):
                 "aplicacao": aplicacao,
                 "codigo":    codigo or "SEM",
             })
+    return products
+
+
+def read_products_from_spreadsheet(drive, sheets, file_info):
+    """Lê os produtos de todas as abas da planilha (Google Sheets nativo ou .xlsx)."""
+    fid   = file_info["id"]
+    mime  = file_info["mimeType"]
+    products = []
+
+    if mime == "application/vnd.google-apps.spreadsheet":
+        # ── Google Sheets nativo — busca todas as abas ────
+        meta = sheets.spreadsheets().get(spreadsheetId=fid, fields="sheets.properties").execute()
+        sheet_names = [s["properties"]["title"] for s in meta.get("sheets", [])]
+        print(f"     📑 {len(sheet_names)} aba(s) encontrada(s): {', '.join(sheet_names)}")
+        for sheet_name in sheet_names:
+            result = sheets.spreadsheets().values().get(
+                spreadsheetId=fid,
+                range=f"'{sheet_name}'!A{LINHA_INICIO}:Z2000"
+            ).execute()
+            rows = result.get("values", [])
+            found = _parse_rows(rows)
+            if found:
+                print(f"       → Aba '{sheet_name}': {len(found)} produto(s)")
+            products.extend(found)
+    else:
+        # ── Arquivo .xlsx — percorre todas as abas ────────
+        request = drive.files().get_media(fileId=fid)
+        buf = io.BytesIO()
+        dl = MediaIoBaseDownload(buf, request)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.seek(0)
+        wb = openpyxl.load_workbook(buf, data_only=True)
+        print(f"     📑 {len(wb.sheetnames)} aba(s) encontrada(s): {', '.join(wb.sheetnames)}")
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = []
+            for row in ws.iter_rows(min_row=LINHA_INICIO, values_only=True):
+                rows.append([str(c) if c is not None else "" for c in row])
+            found = _parse_rows(rows)
+            if found:
+                print(f"       → Aba '{sheet_name}': {len(found)} produto(s)")
+            products.extend(found)
 
     return products
 
