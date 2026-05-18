@@ -39,8 +39,8 @@ from googleapiclient.http import MediaIoBaseDownload
 #  CONFIGURAÇÕES — edite aqui se necessário
 # ─────────────────────────────────────────────────────────
 
-GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "").strip()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "").strip()
 
 # Modelos para rotação automática — quando os tokens de um acabam, passa pro próximo
 # Modelos que começam com "gemini" usam a API do Google AI; os demais usam o Groq
@@ -272,6 +272,8 @@ def read_products_from_spreadsheet(drive, sheets, file_info):
 def _chamar_modelo(modelo, system_message, prompt):
     """Chama o modelo certo dependendo do provider (Gemini ou Groq)."""
     if modelo.startswith("gemini"):
+        if not GOOGLE_API_KEY:
+            raise Exception("GOOGLE_API_KEY não configurada no .env")
         genai.configure(api_key=GOOGLE_API_KEY)
         m = genai.GenerativeModel(
             model_name=modelo,
