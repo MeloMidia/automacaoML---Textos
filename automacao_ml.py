@@ -29,6 +29,7 @@ os.chdir(Path(__file__).resolve().parent)
 
 import openpyxl
 from groq import Groq
+import google.generativeai as genai
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -38,16 +39,22 @@ from googleapiclient.http import MediaIoBaseDownload
 #  CONFIGURAÇÕES — edite aqui se necessário
 # ─────────────────────────────────────────────────────────
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Modelo do Groq a usar — troque aqui quando precisar mudar
-# Modelos gratuitos disponíveis: https://console.groq.com/docs/models
-# Exemplos:
-#   "openai/gpt-oss-20b"         ← atual
-#   "llama-3.3-70b-versatile"    ← Llama 3.3 70B (Groq free tier)
-#   "llama3-70b-8192"            ← Llama 3 70B
-#   "gemma2-9b-it"               ← Google Gemma 2 9B
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+# Modelos para rotação automática — quando os tokens de um acabam, passa pro próximo
+# Modelos que começam com "gemini" usam a API do Google AI; os demais usam o Groq
+# Pode sobrescrever via MODELOS=modelo1,modelo2,... no .env
+_MODELOS_PADRAO = [
+    "gemini-2.5-flash-lite",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+_env_models = os.getenv("MODELOS", os.getenv("GROQ_MODELS", os.getenv("GROQ_MODEL", "")))
+GROQ_MODELS = [m.strip() for m in _env_models.split(",") if m.strip()] or _MODELOS_PADRAO
+
+# Índice global do modelo atual — avança automaticamente quando quota esgota
+_modelo_idx = 0
 
 # ID da pasta MERCADO LIVRE no Google Drive (fixo — não precisa alterar)
 PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
@@ -262,9 +269,31 @@ def read_products_from_spreadsheet(drive, sheets, file_info):
 #  GERAÇÃO VIA GEMINI
 # ══════════════════════════════════════════════════════════
 
+def _chamar_modelo(modelo, system_message, prompt):
+    """Chama o modelo certo dependendo do provider (Gemini ou Groq)."""
+    if modelo.startswith("gemini"):
+        genai.configure(api_key=GOOGLE_API_KEY)
+        m = genai.GenerativeModel(
+            model_name=modelo,
+            system_instruction=system_message,
+        )
+        response = m.generate_content(prompt)
+        return response.text
+    else:
+        client = Groq(api_key=GROQ_API_KEY)
+        response = client.chat.completions.create(
+            model=modelo,
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.5,
+        )
+        return response.choices[0].message.content
+
+
 def generate_with_groq(product, client_name):
-    """Envia o prompt ao Groq e retorna o texto gerado, com retry automático."""
-    client = Groq(api_key=GROQ_API_KEY)
+    """Gera o texto via IA com rotação automática de modelos (Gemini + Groq)."""
 
     system_message = """Você é um especialista em SEO e copywriting para o Mercado Livre, criando anúncios de alta conversão para produtos industriais, automotivos e de abastecimento.
 
@@ -383,35 +412,40 @@ A {client_name} oferece produtos de qualidade para abastecimento, manutenção e
 
 Nosso compromisso é entregar produtos de procedência, envio rápido e atendimento de confiança, ajudando sua operação a manter desempenho, organização e segurança."""
 
-    MAX_TENTATIVAS = 8
+    global _modelo_idx
+    MAX_TENTATIVAS = len(GROQ_MODELS) * 4
     for tentativa in range(1, MAX_TENTATIVAS + 1):
+        modelo_atual = GROQ_MODELS[_modelo_idx % len(GROQ_MODELS)]
         try:
-            response = client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.5,
-            )
-            return response.choices[0].message.content
+            return _chamar_modelo(modelo_atual, system_message, prompt)
         except Exception as e:
             erro = str(e)
-            if "429" in erro or "rate_limit" in erro.lower():
+            if "429" in erro or "rate_limit" in erro.lower() or "quota" in erro.lower() or "Resource has been exhausted" in erro:
                 match = re.search(r'try again in ([\d.]+)s', erro, re.IGNORECASE)
-                espera = int(float(match.group(1))) + 5 if match else 65
-                print(f"\n  ⏳ Rate limit (429) — aguardando {espera}s "
-                      f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
-                time.sleep(espera)
+                espera_sugerida = float(match.group(1)) if match else None
+                if espera_sugerida is not None and espera_sugerida < 120:
+                    # Rate limit temporário — aguarda e tenta no mesmo modelo
+                    espera = int(espera_sugerida) + 5
+                    print(f"\n  ⏳ Rate limit em '{modelo_atual}' — aguardando {espera}s "
+                          f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
+                    time.sleep(espera)
+                else:
+                    # Quota diária esgotada — troca para o próximo modelo
+                    _modelo_idx += 1
+                    proximo = GROQ_MODELS[_modelo_idx % len(GROQ_MODELS)]
+                    provider_novo = "Google AI" if proximo.startswith("gemini") else "Groq"
+                    print(f"\n\n  🔄 Tokens esgotados em '{modelo_atual}'")
+                    print(f"     Novo modelo: {proximo}  [{provider_novo}]\n")
+                    time.sleep(3)
             elif "connect" in erro.lower() or "timeout" in erro.lower() or "read" in erro.lower() or "50" in erro:
                 espera = 15
                 print(f"\n  ⏳ Erro de conexão/API ({erro[:30]}...) — aguardando {espera}s "
                       f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
                 time.sleep(espera)
             else:
-                print(f"\n  ❌ Erro inesperado no Groq: {erro}")
+                print(f"\n  ❌ Erro inesperado no modelo '{modelo_atual}': {erro}")
                 raise
-    raise Exception(f"Falhou após {MAX_TENTATIVAS} tentativas.")
+    raise Exception(f"Falhou após {MAX_TENTATIVAS} tentativas com todos os modelos.")
 
 
 # ══════════════════════════════════════════════════════════
@@ -533,6 +567,13 @@ def main():
     print("\n" + "═" * 55)
     print("  AUTOMAÇÃO MERCADO LIVRE — Geração de Anúncios")
     print("═" * 55)
+
+    modelo_inicial = GROQ_MODELS[_modelo_idx % len(GROQ_MODELS)]
+    provider = "Google AI (Gemini)" if modelo_inicial.startswith("gemini") else "Groq"
+    print(f"\n🤖 Modelo de IA: {modelo_inicial}  [{provider}]")
+    if len(GROQ_MODELS) > 1:
+        outros = ", ".join(m for m in GROQ_MODELS if m != modelo_inicial)
+        print(f"   Rotação automática: {outros}")
 
     # Autenticação
     print("\n🔑 Autenticando com Google...")
