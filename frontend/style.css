@@ -739,6 +739,21 @@ h1, h2, h3 { font-weight: 700; letter-spacing: -0.02em; }
 }
 .toast-close:hover { background: rgba(239, 68, 68, 0.2); transform: scale(1.1); }
 
+.toast-reset {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.toast-reset:hover { background: rgba(239, 68, 68, 0.25); }
+.toast-reset.hidden { display: none; }
+
 /* ── Responsive ────────────────────────────────────────── */
 @media (max-width: 960px) {
   .main {

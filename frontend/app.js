@@ -27,6 +27,7 @@ const App = (() => {
     metricSkipped:  () => $('metric-skipped'),
     errorToast:     () => $('error-toast'),
     errorMessage:   () => $('error-message'),
+    btnReset:       () => $('btn-reset'),
   };
 
   // ── Inicialização ────────────────────────────────────────
@@ -302,11 +303,27 @@ const App = (() => {
   function showError(msg) {
     el.errorMessage().textContent = msg;
     el.errorToast().classList.remove('hidden');
-    setTimeout(() => el.errorToast().classList.add('hidden'), 7000);
+    // Mostra botão de reset se o erro for de automação travada
+    if (msg.includes('automação em execução')) {
+      el.btnReset().classList.remove('hidden');
+    } else {
+      el.btnReset().classList.add('hidden');
+    }
+    setTimeout(() => el.errorToast().classList.add('hidden'), 12000);
   }
 
   function closeError() {
     el.errorToast().classList.add('hidden');
+    el.btnReset().classList.add('hidden');
+  }
+
+  async function forceReset() {
+    await fetch('/api/reset', { method: 'POST' });
+    _running = false;
+    closeError();
+    resetRunButton();
+    setStatus('idle', 'Pronto');
+    appendLog('🔄 Estado resetado — pode iniciar uma nova automação.', 'log-warning');
   }
 
   // ── Utils ────────────────────────────────────────────────
@@ -330,6 +347,7 @@ const App = (() => {
     clearTerminal,
     closeResults,
     closeError,
+    forceReset,
   };
 
 })();
