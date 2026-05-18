@@ -44,6 +44,7 @@ __pycache__/
 | Variável | Valor |
 |---|---|
 | `GROQ_API_KEY` | Sua chave do Groq |
+| `GOOGLE_API_KEY` | Sua chave do Google AI Studio (aistudio.google.com) |
 | `APP_USER` | `timemelo` (ou o nome que quiser) |
 | `APP_PASSWORD` | A senha que o time vai usar |
 | `SECRET_KEY` | Uma string aleatória longa (qualquer texto longo serve) |
