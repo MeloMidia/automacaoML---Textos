@@ -21,6 +21,7 @@ import os
 import pickle
 import re
 import time
+from collections import defaultdict
 from pathlib import Path
 
 # Força o diretório de trabalho para a pasta onde este script está salvo
@@ -473,8 +474,15 @@ def process_client(client_name, client_folder_id, drive, sheets, docs):
 
     created = skipped = errors = 0
 
+    # Rastreia quantas vezes cada nome de produto aparece para gerar títulos únicos
+    name_seen: dict = defaultdict(int)
+
     for i, product in enumerate(products, 1):
-        title = product["produto"]
+        base_title = product["produto"]
+        name_seen[base_title] += 1
+        occurrence = name_seen[base_title]
+        title = base_title if occurrence == 1 else f"{base_title} ({occurrence})"
+
         prefix = f"  [{i:>3}/{len(products)}]"
 
         if title in existing:
