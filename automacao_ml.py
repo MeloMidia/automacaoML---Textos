@@ -28,7 +28,7 @@ from pathlib import Path
 os.chdir(Path(__file__).resolve().parent)
 
 import openpyxl
-from openai import OpenAI
+from openai import OpenAI, APIConnectionError, APITimeoutError
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -396,6 +396,11 @@ Nosso compromisso é entregar produtos de procedência, envio rápido e atendime
     for tentativa in range(1, MAX_TENTATIVAS + 1):
         try:
             return _chamar_modelo(OPENAI_MODEL, system_message, prompt)
+        except (APIConnectionError, APITimeoutError) as e:
+            espera = 15
+            print(f"\n  ⏳ Erro de conexão ({str(e)[:50]}...) — aguardando {espera}s "
+                  f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
+            time.sleep(espera)
         except Exception as e:
             erro = str(e)
             if "429" in erro or "rate_limit" in erro.lower():
@@ -404,9 +409,9 @@ Nosso compromisso é entregar produtos de procedência, envio rápido e atendime
                 print(f"\n  ⏳ Rate limit — aguardando {espera}s "
                       f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
                 time.sleep(espera)
-            elif "connect" in erro.lower() or "timeout" in erro.lower() or "read" in erro.lower():
+            elif any(k in erro.lower() for k in ("connect", "timeout", "read", "conexão", "interrompida", "connection")):
                 espera = 15
-                print(f"\n  ⏳ Erro de conexão ({erro[:30]}...) — aguardando {espera}s "
+                print(f"\n  ⏳ Erro de conexão ({erro[:50]}...) — aguardando {espera}s "
                       f"(tentativa {tentativa}/{MAX_TENTATIVAS})...")
                 time.sleep(espera)
             else:
@@ -498,7 +503,7 @@ def process_client(client_name, client_folder_id, drive, sheets, docs):
     name_seen: dict = defaultdict(int)
 
     for i, product in enumerate(products, 1):
-        base_title = product["produto"]
+        base_title = f"{product['produto']} - {product['codigo']}"
         name_seen[base_title] += 1
         occurrence = name_seen[base_title]
         title = base_title if occurrence == 1 else f"{base_title} ({occurrence})"
