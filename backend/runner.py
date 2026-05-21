@@ -42,7 +42,8 @@ def main():
 
     total_c = total_s = 0
     for client in selected:
-        c, s = aml.process_client(client["name"], client["id"], drive, sheets, docs)
+        sheets_filter = client.get("sheets") or None
+        c, s = aml.process_client(client["name"], client["id"], drive, sheets, docs, sheets_filter=sheets_filter)
         total_c += c
         total_s += s
 

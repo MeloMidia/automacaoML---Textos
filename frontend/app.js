@@ -5,10 +5,13 @@
 const App = (() => {
 
   // ── Estado ──────────────────────────────────────────────
-  let _clients = [];          // lista completa de clientes do Drive
-  let _selected = new Set();  // IDs dos clientes selecionados
-  let _running = false;       // bloqueia múltiplos runs simultâneos
-  let _eventSource = null;    // conexão SSE ativa
+  let _clients = [];
+  let _selected = new Set();
+  let _running  = false;
+  let _eventSource = null;
+
+  let _clientSheets = {};   // clientId → string[]  (undefined = não carregado)
+  let _selectedSheets = {}; // clientId → Set<string>  (undefined = todas)
 
   // ── Elementos DOM ───────────────────────────────────────
   const $ = (id) => document.getElementById(id);
@@ -39,7 +42,7 @@ const App = (() => {
   async function loadClients() {
     renderLoadingState();
     try {
-      const res = await fetch('/api/clients');
+      const res  = await fetch('/api/clients');
       const data = await res.json();
 
       if (!data.ok) {
@@ -55,7 +58,7 @@ const App = (() => {
       } else {
         renderClientsList();
       }
-    } catch (err) {
+    } catch (_) {
       renderErrorState('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
     }
   }
@@ -93,83 +96,230 @@ const App = (() => {
     const list = el.clientsList();
     list.innerHTML = '';
     _clients.forEach(client => {
-      const item = document.createElement('div');
-      item.className = 'client-item';
-      item.dataset.id = client.id;
-      item.innerHTML = `
-        <input type="checkbox" class="client-checkbox" id="chk-${client.id}"
-               onchange="App.toggleClient('${client.id}')" />
-        <label class="client-name" for="chk-${client.id}" title="${escapeHtml(client.name)}">
-          ${escapeHtml(client.name)}
-        </label>`;
-      item.addEventListener('click', (e) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'client-wrapper';
+      wrapper.dataset.id = client.id;
+      wrapper.innerHTML = `
+        <div class="client-item" data-id="${client.id}">
+          <input type="checkbox" class="client-checkbox" id="chk-${client.id}"
+                 onchange="App.toggleClient('${client.id}')" />
+          <label class="client-name" for="chk-${client.id}" title="${escapeHtml(client.name)}">
+            ${escapeHtml(client.name)}
+          </label>
+        </div>
+        <div class="client-sheets hidden" id="sheets-${client.id}"></div>`;
+
+      wrapper.querySelector('.client-item').addEventListener('click', (e) => {
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
           toggleClient(client.id);
         }
       });
-      list.appendChild(item);
+      list.appendChild(wrapper);
     });
   }
 
   // ── Seleção de clientes ──────────────────────────────────
-  function toggleClient(id) {
+  async function toggleClient(id) {
     if (_selected.has(id)) {
       _selected.delete(id);
+      delete _selectedSheets[id];
     } else {
       _selected.add(id);
     }
     updateSelectionUI();
+    if (_selected.has(id)) {
+      await fetchAndShowSheets(id);
+    }
   }
 
-  function selectAll() {
+  async function selectAll() {
+    const newIds = _clients.filter(c => !_selected.has(c.id)).map(c => c.id);
     _clients.forEach(c => _selected.add(c.id));
     updateSelectionUI();
+    await Promise.all(newIds.map(id => fetchAndShowSheets(id)));
   }
 
   function clearAll() {
     _selected.clear();
+    _selectedSheets = {};
     updateSelectionUI();
   }
 
   function updateSelectionUI() {
-    // Checkboxes
     _clients.forEach(client => {
-      const chk = document.getElementById(`chk-${client.id}`);
-      const item = chk?.closest('.client-item');
-      if (chk) chk.checked = _selected.has(client.id);
-      if (item) item.classList.toggle('selected', _selected.has(client.id));
+      const chk      = document.getElementById(`chk-${client.id}`);
+      const item     = chk?.closest('.client-item');
+      const sheetsEl = document.getElementById(`sheets-${client.id}`);
+      const isSel    = _selected.has(client.id);
+
+      if (chk)      chk.checked = isSel;
+      if (item)     item.classList.toggle('selected', isSel);
+      if (sheetsEl) sheetsEl.classList.toggle('hidden', !isSel);
     });
 
-    // Contador
     el.selectedCount().textContent = _selected.size;
-
-    // Botão run
-    el.btnRun().disabled = _selected.size === 0 || _running;
+    el.btnRun().disabled = _selected.size === 0 || _running || hasEmptySheetSelection();
   }
 
+  function hasEmptySheetSelection() {
+    for (const id of _selected) {
+      const sheets   = _clientSheets[id];
+      const selected = _selectedSheets[id];
+      if (sheets && sheets.length > 0 && selected && selected.size === 0) return true;
+    }
+    return false;
+  }
+
+  // ── Carregamento de abas ─────────────────────────────────
+  async function fetchAndShowSheets(clientId) {
+    const sheetsEl = document.getElementById(`sheets-${clientId}`);
+    if (!sheetsEl) return;
+
+    // Cache hit
+    if (_clientSheets[clientId] !== undefined) {
+      renderSheetsForClient(clientId, _clientSheets[clientId]);
+      return;
+    }
+
+    sheetsEl.innerHTML = `
+      <div class="sheets-loading">
+        <div class="spinner-sm"></div>
+        <span>Carregando páginas...</span>
+      </div>`;
+
+    try {
+      const res  = await fetch(`/api/sheets?client_id=${encodeURIComponent(clientId)}`);
+      const data = await res.json();
+
+      if (!_selected.has(clientId)) return; // cliente foi desmarcado enquanto carregava
+
+      _clientSheets[clientId] = (data.ok && data.sheets) ? data.sheets : [];
+      renderSheetsForClient(clientId, _clientSheets[clientId]);
+    } catch (_) {
+      _clientSheets[clientId] = [];
+      sheetsEl.innerHTML = `<div class="sheets-message">Não foi possível carregar páginas.</div>`;
+    }
+  }
+
+  function renderSheetsForClient(clientId, sheets) {
+    const sheetsEl = document.getElementById(`sheets-${clientId}`);
+    const itemEl   = document.querySelector(`.client-wrapper[data-id="${clientId}"] .client-item`);
+    if (!sheetsEl) return;
+
+    if (!sheets || sheets.length === 0) {
+      sheetsEl.innerHTML = `<div class="sheets-message">Nenhuma aba encontrada na planilha.</div>`;
+      if (itemEl) itemEl.classList.remove('has-sheets');
+      return;
+    }
+
+    if (itemEl) itemEl.classList.add('has-sheets');
+
+    // Inicializa seleção com todas as abas se ainda não definido
+    if (!_selectedSheets[clientId]) {
+      _selectedSheets[clientId] = new Set(sheets);
+    }
+
+    const sel = _selectedSheets[clientId];
+
+    sheetsEl.innerHTML = `
+      <div class="sheets-header">
+        <span class="sheets-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+          Páginas
+        </span>
+        <div class="sheets-quick">
+          <button class="btn-sheet-quick" onclick="App.selectAllSheets('${clientId}')">Todas</button>
+          <button class="btn-sheet-quick" onclick="App.clearAllSheets('${clientId}')">Nenhuma</button>
+        </div>
+      </div>
+      <div class="sheets-grid">
+        ${sheets.map((sheet, idx) => `
+          <div class="sheet-item${sel.has(sheet) ? ' selected' : ''}">
+            <input type="checkbox" class="sheet-checkbox" id="sh-${clientId}-${idx}"
+                   ${sel.has(sheet) ? 'checked' : ''}
+                   onchange="App.toggleSheetIdx('${clientId}', ${idx}, this.checked)" />
+            <label class="sheet-name" for="sh-${clientId}-${idx}">${escapeHtml(sheet)}</label>
+          </div>`).join('')}
+      </div>`;
+
+    updateSelectionUI(); // re-valida botão run
+  }
+
+  function toggleSheetIdx(clientId, idx, checked) {
+    const sheetName = _clientSheets[clientId]?.[idx];
+    if (sheetName === undefined) return;
+
+    if (!_selectedSheets[clientId]) {
+      _selectedSheets[clientId] = new Set(_clientSheets[clientId] || []);
+    }
+    const set = _selectedSheets[clientId];
+    if (checked) { set.add(sheetName); } else { set.delete(sheetName); }
+
+    const item = document.getElementById(`sh-${clientId}-${idx}`)?.closest('.sheet-item');
+    if (item) item.classList.toggle('selected', checked);
+
+    updateSelectionUI(); // re-valida botão run
+  }
+
+  function selectAllSheets(clientId) {
+    _selectedSheets[clientId] = new Set(_clientSheets[clientId] || []);
+    renderSheetsForClient(clientId, _clientSheets[clientId] || []);
+  }
+
+  function clearAllSheets(clientId) {
+    _selectedSheets[clientId] = new Set();
+    renderSheetsForClient(clientId, _clientSheets[clientId] || []);
+  }
+
+  // ── Execução ─────────────────────────────────────────────
   async function run() {
     if (_running || _selected.size === 0) return;
 
-    const selectedClients = _clients.filter(c => _selected.has(c.id));
+    // Valida seleção de abas
+    for (const id of _selected) {
+      const sheets   = _clientSheets[id];
+      const selected = _selectedSheets[id];
+      if (sheets && sheets.length > 0 && selected && selected.size === 0) {
+        const name = _clients.find(c => c.id === id)?.name || id;
+        showError(`"${name}": nenhuma página selecionada. Selecione ao menos uma aba.`);
+        return;
+      }
+    }
+
+    const allSheets = _clientSheets;
+    const selectedClients = _clients
+      .filter(c => _selected.has(c.id))
+      .map(c => {
+        const clientObj = { id: c.id, name: c.name };
+        const selSheets = _selectedSheets[c.id];
+        const allSh     = allSheets[c.id];
+        // Envia filtro apenas se não são todas as abas
+        if (selSheets && allSh && selSheets.size < allSh.length) {
+          clientObj.sheets = [...selSheets];
+        }
+        return clientObj;
+      });
+
     const delay = parseInt($('input-delay')?.value ?? '45', 10) || 45;
 
-    // UI → estado running
     _running = true;
     setStatus('running', 'Processando...');
-    el.btnRun().style.display = 'none';
+    el.btnRun().style.display  = 'none';
     el.btnCancel().style.display = '';
 
-    // Limpa terminal e mostra início
     clearTerminal();
     appendLog(`▶  Iniciando para ${selectedClients.length} cliente(s)... (delay: ${delay}s/produto)`, 'log-info');
     appendLog('', 'log-dim');
 
     try {
-      // Dispara o job
-      const res = await fetch('/api/run', {
-        method: 'POST',
+      const res  = await fetch('/api/run', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clients: selectedClients, delay_seconds: delay }),
+        body:    JSON.stringify({ clients: selectedClients, delay_seconds: delay }),
       });
       const data = await res.json();
 
@@ -178,10 +328,8 @@ const App = (() => {
         return;
       }
 
-      // Conecta ao stream SSE
       connectStream(data.job_id);
-
-    } catch (err) {
+    } catch (_) {
       finishWithError('Não foi possível conectar ao servidor.');
     }
   }
@@ -197,21 +345,11 @@ const App = (() => {
       try { event = JSON.parse(e.data); } catch { return; }
 
       switch (event.type) {
-        case 'log':
-          appendLog(event.text);
-          break;
-        case 'done':
-          finishSuccess(event.created, event.skipped);
-          break;
-        case 'error':
-          finishWithError(event.message);
-          break;
-        case 'cancelled':
-          finishCancelled();
-          break;
-        case 'ping':
-          // keepalive — ignora
-          break;
+        case 'log':       appendLog(event.text); break;
+        case 'done':      finishSuccess(event.created, event.skipped); break;
+        case 'error':     finishWithError(event.message); break;
+        case 'cancelled': finishCancelled(); break;
+        case 'ping': break;
       }
     };
 
@@ -224,10 +362,8 @@ const App = (() => {
   function finishSuccess(created, skipped) {
     if (_eventSource) { _eventSource.close(); _eventSource = null; }
     _running = false;
-
     appendLog('', 'log-dim');
     appendLog(`✅  Concluído! ${created} criados | ${skipped} pulados`, 'log-success');
-
     setStatus('done', 'Concluído');
     resetRunButton();
     showResults(created, skipped);
@@ -236,10 +372,8 @@ const App = (() => {
   function finishWithError(msg) {
     if (_eventSource) { _eventSource.close(); _eventSource = null; }
     _running = false;
-
     appendLog('', 'log-dim');
     appendLog(`❌  Erro: ${msg}`, 'log-error');
-
     setStatus('error', 'Erro');
     resetRunButton();
     showError(msg);
@@ -248,25 +382,21 @@ const App = (() => {
   function finishCancelled() {
     if (_eventSource) { _eventSource.close(); _eventSource = null; }
     _running = false;
-
     appendLog('', 'log-dim');
     appendLog('⚠️  Automação cancelada pelo usuário.', 'log-warning');
-
     setStatus('idle', 'Aguardando');
     resetRunButton();
   }
 
   function resetRunButton() {
     el.btnCancel().style.display = 'none';
-    el.btnRun().style.display = '';
-    el.btnRun().disabled = _selected.size === 0;
+    el.btnRun().style.display    = '';
+    el.btnRun().disabled = _selected.size === 0 || hasEmptySheetSelection();
   }
 
   async function cancel() {
-    try {
-      await fetch('/api/cancel', { method: 'POST' });
-    } catch (_) { /* ignora falha de rede */ }
-    el.btnCancel().disabled = true;
+    try { await fetch('/api/cancel', { method: 'POST' }); } catch (_) {}
+    el.btnCancel().disabled    = true;
     el.btnCancel().textContent = 'Cancelando...';
   }
 
@@ -281,12 +411,10 @@ const App = (() => {
     span.textContent = text;
 
     const term = el.terminal();
-    // Remove placeholder se existir
     const placeholder = term.querySelector('.terminal-placeholder');
     if (placeholder) placeholder.remove();
 
     term.appendChild(span);
-    // Auto-scroll
     term.scrollTop = term.scrollHeight;
   }
 
@@ -324,7 +452,6 @@ const App = (() => {
   function showError(msg) {
     el.errorMessage().textContent = msg;
     el.errorToast().classList.remove('hidden');
-    // Mostra botão de reset se o erro for de automação travada
     if (msg.includes('automação em execução')) {
       el.btnReset().classList.remove('hidden');
     } else {
@@ -370,6 +497,9 @@ const App = (() => {
     closeResults,
     closeError,
     forceReset,
+    toggleSheetIdx,
+    selectAllSheets,
+    clearAllSheets,
   };
 
 })();

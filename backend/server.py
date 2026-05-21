@@ -349,6 +349,21 @@ def get_clients(_: None = Depends(require_session)):
         return {"ok": False, "error": str(e)}
 
 
+@app.get("/api/sheets")
+def get_sheets(client_id: str, _: None = Depends(require_session)):
+    try:
+        creds  = aml.get_credentials()
+        drive  = build("drive",  "v3", credentials=creds)
+        sheets = build("sheets", "v4", credentials=creds)
+        spreadsheet = aml.find_main_spreadsheet(drive, client_id)
+        if not spreadsheet:
+            return {"ok": True, "sheets": []}
+        names = aml.get_sheet_names(drive, sheets, spreadsheet)
+        return {"ok": True, "sheets": names}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @app.post("/api/run")
 def run_automation(body: dict, _: None = Depends(require_session)):
     global _running

@@ -142,6 +142,30 @@ def find_main_spreadsheet(drive, parent_id):
     return files[0]
 
 
+def get_sheet_names(drive, sheets_service, file_info):
+    """Retorna lista de nomes de abas de uma planilha."""
+    fid  = file_info["id"]
+    mime = file_info["mimeType"]
+
+    if mime == "application/vnd.google-apps.spreadsheet":
+        meta = sheets_service.spreadsheets().get(
+            spreadsheetId=fid, fields="sheets.properties.title"
+        ).execute()
+        return [s["properties"]["title"] for s in meta.get("sheets", [])]
+    else:
+        request = drive.files().get_media(fileId=fid)
+        buf = io.BytesIO()
+        dl = MediaIoBaseDownload(buf, request)
+        done = False
+        while not done:
+            _, done = dl.next_chunk()
+        buf.seek(0)
+        wb = openpyxl.load_workbook(buf, read_only=True)
+        names = list(wb.sheetnames)
+        wb.close()
+        return names
+
+
 def get_or_create_textos_folder(drive, client_folder_id):
     """Retorna (ou cria) a pasta TEXTOS dentro do cliente."""
     folder = find_folder_by_name(drive, "TEXTOS", client_folder_id)
@@ -207,8 +231,11 @@ def _parse_rows(rows):
     return products
 
 
-def read_products_from_spreadsheet(drive, sheets, file_info):
-    """Lê os produtos de todas as abas da planilha (Google Sheets nativo ou .xlsx)."""
+def read_products_from_spreadsheet(drive, sheets, file_info, sheets_filter=None):
+    """Lê os produtos das abas da planilha (Google Sheets nativo ou .xlsx).
+
+    sheets_filter: lista de nomes de abas a processar, ou None para todas.
+    """
     fid   = file_info["id"]
     mime  = file_info["mimeType"]
     products = []
@@ -217,7 +244,9 @@ def read_products_from_spreadsheet(drive, sheets, file_info):
         # ── Google Sheets nativo — busca todas as abas ────
         meta = sheets.spreadsheets().get(spreadsheetId=fid, fields="sheets.properties").execute()
         sheet_names = [s["properties"]["title"] for s in meta.get("sheets", [])]
-        print(f"     📑 {len(sheet_names)} aba(s) encontrada(s): {', '.join(sheet_names)}")
+        if sheets_filter:
+            sheet_names = [s for s in sheet_names if s in sheets_filter]
+        print(f"     📑 {len(sheet_names)} aba(s) selecionada(s): {', '.join(sheet_names)}")
         for sheet_name in sheet_names:
             result = sheets.spreadsheets().values().get(
                 spreadsheetId=fid,
@@ -238,8 +267,10 @@ def read_products_from_spreadsheet(drive, sheets, file_info):
             _, done = dl.next_chunk()
         buf.seek(0)
         wb = openpyxl.load_workbook(buf, data_only=True)
-        print(f"     📑 {len(wb.sheetnames)} aba(s) encontrada(s): {', '.join(wb.sheetnames)}")
-        for sheet_name in wb.sheetnames:
+        all_names = list(wb.sheetnames)
+        filtered  = [s for s in all_names if s in sheets_filter] if sheets_filter else all_names
+        print(f"     📑 {len(filtered)} aba(s) selecionada(s): {', '.join(filtered)}")
+        for sheet_name in filtered:
             ws = wb[sheet_name]
             rows = []
             for row in ws.iter_rows(min_row=LINHA_INICIO, values_only=True):
@@ -578,7 +609,7 @@ def create_google_doc(drive, docs, title, content, folder_id):
 #  PROCESSAMENTO POR CLIENTE
 # ══════════════════════════════════════════════════════════
 
-def process_client(client_name, client_folder_id, drive, sheets, docs):
+def process_client(client_name, client_folder_id, drive, sheets, docs, sheets_filter=None):
     """Processa todos os produtos de um cliente."""
     sep = "─" * 55
     print(f"\n{sep}")
@@ -595,7 +626,7 @@ def process_client(client_name, client_folder_id, drive, sheets, docs):
 
     # Lê produtos
     try:
-        products = read_products_from_spreadsheet(drive, sheets, spreadsheet)
+        products = read_products_from_spreadsheet(drive, sheets, spreadsheet, sheets_filter=sheets_filter)
     except Exception as e:
         print(f"  ❌ Erro ao ler planilha: {e}")
         return 0, 0
