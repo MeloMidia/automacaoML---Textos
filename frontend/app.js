@@ -18,7 +18,7 @@ const App = (() => {
     clientsCount:   () => $('clients-count'),
     selectedCount:  () => $('selected-count'),
     btnRun:         () => $('btn-run'),
-    btnRunLabel:    () => $('btn-run-label'),
+    btnCancel:      () => $('btn-cancel'),
     terminal:       () => $('terminal-output'),
     statusBadge:    () => $('status-badge'),
     statusLabel:    () => $('status-badge').querySelector('.status-label'),
@@ -156,9 +156,8 @@ const App = (() => {
     // UI → estado running
     _running = true;
     setStatus('running', 'Processando...');
-    el.btnRun().classList.add('loading');
-    el.btnRunLabel().textContent = 'Processando...';
-    el.btnRun().disabled = true;
+    el.btnRun().style.display = 'none';
+    el.btnCancel().style.display = '';
 
     // Limpa terminal e mostra início
     clearTerminal();
@@ -207,6 +206,9 @@ const App = (() => {
         case 'error':
           finishWithError(event.message);
           break;
+        case 'cancelled':
+          finishCancelled();
+          break;
         case 'ping':
           // keepalive — ignora
           break;
@@ -243,10 +245,29 @@ const App = (() => {
     showError(msg);
   }
 
+  function finishCancelled() {
+    if (_eventSource) { _eventSource.close(); _eventSource = null; }
+    _running = false;
+
+    appendLog('', 'log-dim');
+    appendLog('⚠️  Automação cancelada pelo usuário.', 'log-warning');
+
+    setStatus('idle', 'Aguardando');
+    resetRunButton();
+  }
+
   function resetRunButton() {
-    el.btnRun().classList.remove('loading');
-    el.btnRunLabel().textContent = 'Iniciar Automação';
+    el.btnCancel().style.display = 'none';
+    el.btnRun().style.display = '';
     el.btnRun().disabled = _selected.size === 0;
+  }
+
+  async function cancel() {
+    try {
+      await fetch('/api/cancel', { method: 'POST' });
+    } catch (_) { /* ignora falha de rede */ }
+    el.btnCancel().disabled = true;
+    el.btnCancel().textContent = 'Cancelando...';
   }
 
   // ── Terminal ─────────────────────────────────────────────
@@ -344,6 +365,7 @@ const App = (() => {
     selectAll,
     clearAll,
     run,
+    cancel,
     clearTerminal,
     closeResults,
     closeError,

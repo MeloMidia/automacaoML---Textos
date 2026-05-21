@@ -48,6 +48,8 @@ print(f"------------------------------\n")
 
 _jobs: dict[str, queue.Queue] = {}
 _running = False
+_proc: "subprocess.Popen | None" = None
+_cancel_requested = False
 
 
 # ── Sessão simples via cookie assinado ─────────────────────────────────────
@@ -363,8 +365,9 @@ def run_automation(body: dict, _: None = Depends(require_session)):
     _jobs[job_id] = q
 
     def worker():
-        global _running
+        global _running, _proc, _cancel_requested
         _running = True
+        _cancel_requested = False
         try:
             config_json = json.dumps({"clients": selected, "delay": delay})
             env = {**__import__("os").environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1"}
@@ -379,6 +382,7 @@ def run_automation(body: dict, _: None = Depends(require_session)):
                 cwd=str(ROOT),
                 env=env,
             )
+            _proc = proc
             proc.stdin.write(config_json)
             proc.stdin.close()
 
@@ -396,15 +400,23 @@ def run_automation(body: dict, _: None = Depends(require_session)):
                 except json.JSONDecodeError:
                     q.put({"type": "log", "text": line})
 
-            proc.wait(timeout=5)
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                pass
+
             if not done_received:
-                q.put({"type": "error", "message": "Processo encerrou inesperadamente."})
+                if _cancel_requested:
+                    q.put({"type": "cancelled"})
+                else:
+                    q.put({"type": "error", "message": "Processo encerrou inesperadamente."})
 
         except Exception as exc:
             for line in traceback.format_exc().splitlines():
                 q.put({"type": "log", "text": line})
             q.put({"type": "error", "message": str(exc)})
         finally:
+            _proc = None
             _running = False
 
     threading.Thread(target=worker, daemon=True).start()
@@ -440,6 +452,15 @@ def stream_logs(job_id: str, _: None = Depends(require_session)):
 @app.get("/api/status")
 def get_status(_: None = Depends(require_session)):
     return {"running": _running}
+
+
+@app.post("/api/cancel")
+def cancel_automation(_: None = Depends(require_session)):
+    global _cancel_requested, _proc
+    _cancel_requested = True
+    if _proc is not None and _proc.poll() is None:
+        _proc.terminate()
+    return {"ok": True}
 
 
 @app.post("/api/reset")
