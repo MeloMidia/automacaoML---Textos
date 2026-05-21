@@ -296,43 +296,160 @@ EXEMPLO REAL DE ANUNCIO BEM FEITO (use como referência de qualidade):
 ========================================================
 
 DADOS DE ENTRADA DO EXEMPLO:
-Produto: Mangote Para Breakaway 3/4 150MM Fixo + Fixo Alumínio
-Marca: MARTINELLI
-Codigo: SEM
-Aplicacao: Utilizado para instalação da válvula de segurança Breakaway em bombas de combustível / Compatível com sistemas de abastecimento 3/4 polegadas / Entrada e saída macho 3/4" NPT / Indicado para postos de combustíveis
+Produto: FILTRO COMBUSTIVEL
+Marca: AUTHOMIX
+Codigo: FCO0507
+Aplicacao: CHEVROLET:
+S10 2.5 16V 14/
+
+CITROEN: 
+Aircross 1.6 16v 10/18, Berlingo 1.6
+16v 05/07, Berlingo 1.8 8v 97/03, C3
+1.2 12v 16/, C3 1.5 8v 14/16, C3 1.6
+16v 03/14, C3 Picasso 1.6 16v 11/16,
+C4 2.0 16v 09/13, C4 Lounge 1.6 16v
+13/18, C4 Pallas 2.0 16v 07/13
+
+FIAT:
+Mobi 1.0 8v 16/, Uno 1.0 6v 16/17
+
+HONDA:
+Civic 1.8 16v 11/14, Civic 2.0 16v
+13/17, Fit 1.4 16v 08/14, Fit 1.5 16v
+14/
+
+HYNDAI:
+HB20 1.0 12V / 1.6 16V 12/19
+
+KIA:
+Sportage 2.0 16v 12/16
+
+NISSAN:
+Grand Livina 1.8 16v 09/14, Livina 1.6
+16v 09/14, Kicks 1.6 16v 16/17, March
+1.0 16v 11/16, Sentra 2.0 16v 06/16,
+Versa 1.0 12v 15/, Tiida 1.8 16v 07/13,
+Versa 1.6 16v 11/
+
+PEGEOUT
+106 1.0 8V 92/05, 08 1.6 16V 15/19,
+206 1.4 8V 04/09, 205 1.4 8V 92/98,
+206 1.6 16V 00/08, 206 1.6 8V 99/03,
+207 1.4 8V 09/14, 207 1.6 16V 08/13,
+208 1.5 8V 13/16, 208 1.6 16V 14/18,
+3008 1.6 16V 10/17, 306 1.8 16V
+97/04
+
+RENAULT:
+Clio 1.0 16v 01/13, Clio 1.0 8v 99/06,
+Clio 1.6 16v 00/09, Clio 1.6 8v 98/02,
+Duster 1.6 /2.0 16v 11/18, Fluence 1.6
+16v 12/, Fluence 2.0 16v 11/, Gran
+Tour 1.6 16v 06/12, Kangoo 1.6 16v
+02/11
+
+VOLKSWAGEN:
+Cross Up! 1.0 12v 14/17, Gol 1.0 12v
+16/18, Gol 1.6 8v 08/15, Golf 1.0 12v
+16/18, Golf 1.6 16v 15/16, Golf 1.6
+8v 06/14, Kombi 1.4 8v 06/12, Polo
+1.6 8v 04/14, Polo 2.0 8v 08/12, Polo
+Sedan 1.6 8v 04/14, Saveiro 1.6 16v
+14/16
 
 SAIDA CORRETA DO EXEMPLO:
 
-TITULO
-Mangote Breakaway 3/4 150mm Fixo Fixo Alumínio
+TÍTULO (SEO Mercado Livre)
 
-DESCRICAO COMPLETA 
+Filtro Combustível Gol Voyage Polo Civic Hb20 S10
+
+DESCRIÇÃO COMPLETA (Padrão Escalada Ecom)
 --------------------------------------------------
 O QUE VEM NA CAIXA
-- 01 Mangote Para Breakaway 3/4 150MM Fixo + Fixo Alumínio
-- Marca: MARTINELLI
-- Codigo/Referencia: SEM
+- 01 Filtro de Combustível
+- Marca: AUTHOMIX
+- Código/Referência: FCO0507
 --------------------------------------------------
-APLICACAO
-- Utilizado para instalação da válvula de segurança Breakaway
-- Aplicação em bombas de combustível
-- Compatível com sistemas de abastecimento 3/4 polegadas
-- Entrada e saída macho 3/4" NPT
-- Indicado para postos de combustíveis e sistemas de abastecimento
---------------------------------------------------
-O mangote para breakaway 3/4 150mm fixo + fixo alumínio é um componente essencial para a instalação correta da válvula de segurança Breakaway em bombas de combustível, garantindo uma conexão segura e eficiente no sistema de abastecimento.
+APLICAÇÃO
 
-Fabricado com mangueira 3/4" com trama de aço, oferece maior resistência e durabilidade para operações contínuas, utilizando mangueira certificada e homologada pelo INMETRO. Conta com dois terminais fixos de alumínio de alta qualidade e conexões macho 3/4" NPT, proporcionando vedação eficiente, resistência ao uso intenso e maior confiabilidade na operação do posto.
+CHEVROLET:
+- S10 2.5 16V 2014/
+
+CITROËN:
+- Aircross 1.6 16V 2010/2018
+- Berlingo 1.6 16V 2005/2007
+- Berlingo 1.8 8V 1997/2003
+- C3 1.2 12V 2016/
+- C3 1.5 8V 2014/2016
+- C3 1.6 16V 2003/2014
+- C3 Picasso 1.6 16V 2011/2016
+- C4 2.0 16V 2009/2013
+- C4 Lounge 1.6 16V 2013/2018
+- C4 Pallas 2.0 16V 2007/2013
+
+FIAT:
+- Mobi 1.0 8V 2016/
+- Uno 1.0 2016/2017
+
+HONDA:
+- Civic 1.8 16V 2011/2014
+- Civic 2.0 16V 2013/2017
+- Fit 1.4 16V 2008/2014
+- Fit 1.5 16V 2014/
+
+HYUNDAI:
+- HB20 1.0 12V / 1.6 16V 2012/2019
+
+KIA:
+- Sportage 2.0 16V 2012/2016
+
+NISSAN:
+- Grand Livina 1.8 16V 2009/2014
+- Livina 1.6 16V 2009/2014
+- Kicks 1.6 16V 2016/2017
+- March 1.0 16V 2011/2016
+- Sentra 2.0 16V 2006/2016
+- Versa 1.0 12V 2015/
+- Tiida 1.8 16V 2007/2013
+- Versa 1.6 16V 2011/
+
+PEUGEOT:
+- 106 1.0 8V 1992/2005
+- 208 1.6 16V 2014/2018
+- 3008 1.6 16V 2010/2017
+- 206, 207, 306 e demais modelos conforme aplicação
+
+RENAULT:
+- Clio 1.0 16V 2001/2013
+- Clio 1.0 8V 1999/2006
+- Duster 1.6 / 2.0 16V 2011/2018
+- Fluence 1.6 / 2.0 16V
+- Kangoo 1.6 16V 2002/2011
+
+VOLKSWAGEN:
+- Cross Up! 1.0 12V 2014/2017
+- Gol 1.0 12V 2016/2018
+- Gol 1.6 8V 2008/2015
+- Golf 1.0 / 1.6 2006/2018
+- Kombi 1.4 8V 2006/2012
+- Polo 1.6 / 2.0 2004/2014
+- Polo Sedan 1.6 8V 2004/2014
+- Saveiro 1.6 16V 2014/2016
+--------------------------------------------------
+Mantenha o sistema de alimentação do motor protegido com o filtro de combustível AUTHOMIX. Desenvolvido para reter impurezas presentes no combustível, ajuda a preservar bicos injetores, bomba de combustível e demais componentes do sistema, contribuindo para melhor desempenho e funcionamento do veículo.
+
+A substituição periódica do filtro auxilia na prevenção de falhas, melhora a eficiência do motor e ajuda a manter o consumo adequado de combustível. Produzido com materiais de qualidade, oferece excelente filtragem e maior confiabilidade para o dia a dia.
 --------------------------------------------------
 INSTITUCIONAL
 
-A MUNDIAL POSTO oferece produtos de qualidade para abastecimento, manutenção e operação de postos de combustíveis, disponibilizando soluções confiáveis para maior segurança e eficiência no dia a dia.
+A EUnaPEÇAS trabalha com peças e acessórios automotivos de qualidade, oferecendo produtos confiáveis para manutenção, segurança e desempenho do seu veículo.
 
-Nosso compromisso é entregar produtos de procedência, envio rápido e atendimento de confiança, ajudando sua operação a manter desempenho, organização e segurança.
+Nosso compromisso é entregar produtos de procedência, envio rápido e atendimento de confiança, ajudando você a manter seu veículo sempre em excelente funcionamento.
+
 
 ========================================================
 REGRAS DO TITULO (aprenda com o exemplo):
-- O título não é o nome do produto. É uma frase de busca otimizada.
+- O título não é o nome do produto. É uma mistura coerencte de palavras-chave de busca otimizada.
 - Inclua especificações técnicas e/ou modelos compatíveis extraídos da APLICACAO.
 - Máximo 60 caracteres. Sem a marca. Sem o código.
 - RUIM: "LAMPADA H7 24V 100W CAMINHAO"  (nome bruto)
@@ -342,12 +459,20 @@ REGRAS DO TITULO (aprenda com o exemplo):
 
 ========================================================
 REGRAS DA SECAO APLICACAO (aprenda com o exemplo):
-- Para produtos de posto/industrial: liste usos, compatibilidades e especificações técnicas como bullets.
-- Para autopeças com lista de veículos: agrupe por montadora:
-  Volkswagen: Gol, Voyage, Polo, Golf
-  Fiat: Uno, Palio, Siena
-  Honda: Civic, Fit
-- Se a aplicação estiver vazia, escreva: - Verificar compatibilidade com o fabricante
+- Para produtos com aplicação vazia: liste usos, compatibilidades e especificações técnicas fazendo buscas do produto na internet.
+- Para autopeças com lista de veículos: agrupe por montadora e busque ano, modelo e  motor para cada um. Exemplo:
+  Volkswagen: 
+  - Gol 2010-2020 1.0 1.4 2.0
+  - Voyage 2010-2020 1.0 1.4 2.0
+  - Polo Golf 2010-2020 1.0 1.4 2.0
+  Fiat: 
+  - Uno 2010-2020 1.0 1.4
+  - Palio 2010-2020 1.0 1.4
+  - Siena 2010-2020 1.0 1.4
+  Honda: 
+  - Civic 2010-2020 1.0 1.4
+  - Fit 2010-2020 1.0 1.4
+
 - NUNCA escreva o código do produto na APLICACAO.
 
 ========================================================
@@ -369,13 +494,14 @@ Loja: {client_name}
 
 FORMATO OBRIGATORIO — copie os rótulos EXATAMENTE como no exemplo:
 
+TÍTULO (SEO Mercado Livre)
 
 [uma unica linha de titulo SEO]
 
-DESCRICAO COMPLETA (Padrao Escalada Ecom)
+DESCRICAO COMPLETA (Padrao Ecom)
 --------------------------------------------------
 O QUE VEM NA CAIXA
-- 01 {product['produto']}
+- {product['produto']}
 - Marca: {product['marca']}
 - Codigo/Referencia: {product['codigo']}
 --------------------------------------------------
