@@ -417,6 +417,9 @@ def run_automation(body: dict, _: None = Depends(require_session)):
 
             try:
                 proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
             except Exception:
                 pass
 
@@ -451,7 +454,7 @@ def stream_logs(job_id: str, _: None = Depends(require_session)):
             try:
                 event = q.get(timeout=25)
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-                if event.get("type") in ("done", "error"):
+                if event.get("type") in ("done", "error", "cancelled"):
                     _jobs.pop(job_id, None)
                     break
             except queue.Empty:
@@ -474,7 +477,7 @@ def cancel_automation(_: None = Depends(require_session)):
     global _cancel_requested, _proc
     _cancel_requested = True
     if _proc is not None and _proc.poll() is None:
-        _proc.terminate()
+        _proc.kill()  # SIGKILL no Linux — não pode ser ignorado
     return {"ok": True}
 
 
