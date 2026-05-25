@@ -50,11 +50,11 @@ PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
 LINHA_INICIO = 3  # linha 3 = primeira linha de produto
 
 # Índices das colunas (0 = coluna A, 1 = B, etc.)
-# Ordem da planilha: SKU(A), PRODUTO(B), MARCA(C), CÓDIGO(D), APLICAÇÃO(E)
-COL_PRODUTO   = 1   # B — Nome do produto
-COL_MARCA     = 2   # C — Marca
-COL_CODIGO    = 3   # D — Código
-COL_APLICACAO = 4   # E — Aplicação
+# Ordem da planilha: PRODUTO(A), MARCA(B), CÓDIGO(C), APLICAÇÃO(D)
+COL_PRODUTO   = 0   # A — Nome do produto
+COL_MARCA     = 1   # B — Marca
+COL_CODIGO    = 2   # C — Código
+COL_APLICACAO = 3   # D — Aplicação
 
 # Intervalo entre chamadas à API (segundos) para evitar rate limit
 DELAY_ENTRE_PRODUTOS = 20
