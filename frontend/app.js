@@ -389,15 +389,21 @@ const App = (() => {
   }
 
   function resetRunButton() {
-    el.btnCancel().style.display = 'none';
+    const btnCancel = el.btnCancel();
+    btnCancel.style.display = 'none';
+    btnCancel.disabled = false;
+    const span = btnCancel.querySelector('span');
+    if (span) span.textContent = 'Cancelar Automação';
     el.btnRun().style.display    = '';
     el.btnRun().disabled = _selected.size === 0 || hasEmptySheetSelection();
   }
 
   async function cancel() {
     try { await fetch('/api/cancel', { method: 'POST' }); } catch (_) {}
-    el.btnCancel().disabled    = true;
-    el.btnCancel().textContent = 'Cancelando...';
+    const btnCancel = el.btnCancel();
+    btnCancel.disabled = true;
+    const span = btnCancel.querySelector('span');
+    if (span) span.textContent = 'Cancelando...';
   }
 
   // ── Terminal ─────────────────────────────────────────────
