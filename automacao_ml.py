@@ -49,12 +49,15 @@ PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
 # Linha de início dos dados na planilha (pula cabeçalhos)
 LINHA_INICIO = 3  # linha 3 = primeira linha de produto
 
-# Índices das colunas (0 = coluna A, 1 = B, etc.)
-# Ordem da planilha: PRODUTO(A), MARCA(B), CÓDIGO(C), APLICAÇÃO(D)
-COL_PRODUTO   = 0   # A — Nome do produto
-COL_MARCA     = 1   # B — Marca
-COL_CODIGO    = 2   # C — Código
-COL_APLICACAO = 3   # D — Aplicação
+# Palavras-chave para detecção automática de colunas (case-insensitive)
+_HEADER_KEYWORDS = {
+    "produto":   ["produto", "product", "item", "descricao", "descrição", "nome"],
+    "marca":     ["marca", "brand", "fabricante"],
+    "codigo":    ["codigo", "código", "code", "ref", "referencia", "referência", "sku"],
+    "aplicacao": ["aplicacao", "aplicação", "aplicavel", "aplicável", "compatib", "veiculo", "veículo"],
+}
+# Fallback caso nenhum cabeçalho seja encontrado
+_COL_DEFAULTS = {"produto": 0, "marca": 1, "codigo": 2, "aplicacao": 3}
 
 # Intervalo entre chamadas à API (segundos) para evitar rate limit
 DELAY_ENTRE_PRODUTOS = 20
@@ -203,11 +206,38 @@ def list_existing_docs(drive, folder_id):
 #  LEITURA DA PLANILHA
 # ══════════════════════════════════════════════════════════
 
-def _parse_rows(rows):
-    """Converte linhas brutas em lista de produtos."""
+def detect_columns(header_rows):
+    """Detecta índices de coluna a partir das linhas de cabeçalho da planilha.
+
+    Varre as linhas de cabeçalho procurando palavras-chave conhecidas.
+    Retorna um dict {campo: índice_coluna}. Usa _COL_DEFAULTS para campos
+    não encontrados.
+    """
+    mapping = {}
+    for row in header_rows:
+        for col_idx, cell in enumerate(row):
+            cell_norm = str(cell).strip().lower()
+            if not cell_norm or cell_norm in ("none", "nan"):
+                continue
+            for field, keywords in _HEADER_KEYWORDS.items():
+                if field not in mapping and any(kw in cell_norm for kw in keywords):
+                    mapping[field] = col_idx
+        if len(mapping) == len(_HEADER_KEYWORDS):
+            break  # todos os campos encontrados
+
+    # preenche campos não detectados com o fallback
+    for field, default_idx in _COL_DEFAULTS.items():
+        if field not in mapping:
+            mapping[field] = default_idx
+
+    return mapping
+
+
+def _parse_rows(rows, col_map):
+    """Converte linhas brutas em lista de produtos usando mapeamento dinâmico de colunas."""
     products = []
     for row in rows:
-        if len(row) <= COL_PRODUTO:
+        if len(row) <= col_map["produto"]:
             continue
 
         def cell(idx):
@@ -216,10 +246,10 @@ def _parse_rows(rows):
             v = str(row[idx]).strip()
             return "" if v.lower() in ("none", "nan", "") else v
 
-        produto   = cell(COL_PRODUTO)
-        marca     = cell(COL_MARCA)
-        aplicacao = cell(COL_APLICACAO)
-        codigo    = cell(COL_CODIGO) or "SEM"
+        produto   = cell(col_map["produto"])
+        marca     = cell(col_map["marca"])
+        aplicacao = cell(col_map["aplicacao"])
+        codigo    = cell(col_map["codigo"]) or "SEM"
 
         if produto and produto.lower() not in ("produto", "none", "nan"):
             products.append({
@@ -248,12 +278,21 @@ def read_products_from_spreadsheet(drive, sheets, file_info, sheets_filter=None)
             sheet_names = [s for s in sheet_names if s in sheets_filter]
         print(f"     📑 {len(sheet_names)} aba(s) selecionada(s): {', '.join(sheet_names)}")
         for sheet_name in sheet_names:
+            # lê cabeçalhos (linhas 1 até LINHA_INICIO-1) para detectar colunas
+            header_result = sheets.spreadsheets().values().get(
+                spreadsheetId=fid,
+                range=f"'{sheet_name}'!A1:Z{LINHA_INICIO - 1}"
+            ).execute()
+            col_map = detect_columns(header_result.get("values", []))
+            print(f"       🗂  Colunas detectadas: produto={col_map['produto']} marca={col_map['marca']} "
+                  f"codigo={col_map['codigo']} aplicacao={col_map['aplicacao']}")
+
             result = sheets.spreadsheets().values().get(
                 spreadsheetId=fid,
                 range=f"'{sheet_name}'!A{LINHA_INICIO}:Z2000"
             ).execute()
             rows = result.get("values", [])
-            found = _parse_rows(rows)
+            found = _parse_rows(rows, col_map)
             if found:
                 print(f"       → Aba '{sheet_name}': {len(found)} produto(s)")
             products.extend(found)
@@ -272,10 +311,18 @@ def read_products_from_spreadsheet(drive, sheets, file_info, sheets_filter=None)
         print(f"     📑 {len(filtered)} aba(s) selecionada(s): {', '.join(filtered)}")
         for sheet_name in filtered:
             ws = wb[sheet_name]
+            # lê cabeçalhos para detectar colunas
+            header_rows = []
+            for row in ws.iter_rows(min_row=1, max_row=LINHA_INICIO - 1, values_only=True):
+                header_rows.append([str(c) if c is not None else "" for c in row])
+            col_map = detect_columns(header_rows)
+            print(f"       🗂  Colunas detectadas: produto={col_map['produto']} marca={col_map['marca']} "
+                  f"codigo={col_map['codigo']} aplicacao={col_map['aplicacao']}")
+
             rows = []
             for row in ws.iter_rows(min_row=LINHA_INICIO, values_only=True):
                 rows.append([str(c) if c is not None else "" for c in row])
-            found = _parse_rows(rows)
+            found = _parse_rows(rows, col_map)
             if found:
                 print(f"       → Aba '{sheet_name}': {len(found)} produto(s)")
             products.extend(found)
