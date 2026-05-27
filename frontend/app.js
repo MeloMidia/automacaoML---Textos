@@ -19,6 +19,8 @@ const App = (() => {
   const el = {
     clientsList:    () => $('clients-list'),
     clientsCount:   () => $('clients-count'),
+    clientSearch:   () => $('client-search'),
+    btnSearchClear: () => $('btn-search-clear'),
     selectedCount:  () => $('selected-count'),
     btnRun:         () => $('btn-run'),
     btnCancel:      () => $('btn-cancel'),
@@ -143,6 +145,40 @@ const App = (() => {
     _selected.clear();
     _selectedSheets = {};
     updateSelectionUI();
+  }
+
+  // ── Busca de clientes ────────────────────────────────────
+  function filterClients(query) {
+    const q = query.trim().toLowerCase();
+    const clearBtn = el.btnSearchClear();
+    if (clearBtn) clearBtn.classList.toggle('hidden', q === '');
+
+    let visibleCount = 0;
+    _clients.forEach(client => {
+      const wrapper = document.querySelector(`.client-wrapper[data-id="${client.id}"]`);
+      if (!wrapper) return;
+      const matches = client.name.toLowerCase().includes(q);
+      wrapper.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+
+    const list = el.clientsList();
+    const noResult = list.querySelector('.search-no-results');
+    if (visibleCount === 0 && q !== '' && _clients.length > 0) {
+      if (!noResult) {
+        const div = document.createElement('div');
+        div.className = 'search-no-results';
+        div.textContent = 'Nenhum cliente encontrado.';
+        list.appendChild(div);
+      }
+    } else if (noResult) {
+      noResult.remove();
+    }
+  }
+
+  function clearSearch() {
+    const input = el.clientSearch();
+    if (input) { input.value = ''; filterClients(''); input.focus(); }
   }
 
   function updateSelectionUI() {
@@ -506,6 +542,8 @@ const App = (() => {
     toggleSheetIdx,
     selectAllSheets,
     clearAllSheets,
+    filterClients,
+    clearSearch,
   };
 
 })();
