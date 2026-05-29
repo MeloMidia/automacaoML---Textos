@@ -223,17 +223,21 @@ def detect_columns(header_rows):
     Retorna um dict {campo: índice_coluna}. Usa _COL_DEFAULTS para campos
     não encontrados.
     """
-    mapping = {}
+    # best[field] = (prioridade_do_keyword, col_idx) — menor prioridade = mais específico
+    best = {}
     for row in header_rows:
         for col_idx, cell in enumerate(row):
             cell_norm = _norm(cell)
             if not cell_norm or cell_norm in ("none", "nan"):
                 continue
             for field, keywords in _HEADER_KEYWORDS.items():
-                if field not in mapping and any(kw in cell_norm for kw in keywords):
-                    mapping[field] = col_idx
-        if len(mapping) == len(_HEADER_KEYWORDS):
-            break  # todos os campos encontrados
+                for priority, kw in enumerate(keywords):
+                    if kw in cell_norm:
+                        if field not in best or priority < best[field][0]:
+                            best[field] = (priority, col_idx)
+                        break  # usa o keyword de maior prioridade para esta célula
+
+    mapping = {field: col_idx for field, (_, col_idx) in best.items()}
 
     # preenche campos não detectados com o fallback
     for field, default_idx in _COL_DEFAULTS.items():
