@@ -336,6 +336,9 @@ def read_products_from_spreadsheet(drive, sheets, file_info, sheets_filter=None)
             header_rows = []
             for row in ws.iter_rows(min_row=1, max_row=LINHA_INICIO - 1, values_only=True):
                 header_rows.append([str(c) if c is not None else "" for c in row])
+            print(f"       🔍 DEBUG cabeçalhos lidos (linhas 1-{LINHA_INICIO-1}):")
+            for i, hr in enumerate(header_rows):
+                print(f"          Linha {i+1}: {hr[:10]}")
             col_map = detect_columns(header_rows)
             print(f"       🗂  Colunas detectadas: produto={col_map['produto']} marca={col_map['marca']} "
                   f"codigo={col_map['codigo']} aplicacao={col_map['aplicacao']}")
