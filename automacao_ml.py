@@ -22,6 +22,7 @@ import os
 import pickle
 import re
 import time
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -50,13 +51,21 @@ PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
 # Linha de início dos dados na planilha (pula cabeçalhos)
 LINHA_INICIO = 3  # linha 3 = primeira linha de produto
 
-# Palavras-chave para detecção automática de colunas (case-insensitive)
+# Palavras-chave para detecção automática de colunas (sem acentos — comparação normalizada)
 _HEADER_KEYWORDS = {
-    "produto":   ["produto", "product", "item", "descricao", "descrição", "nome"],
+    "produto":   ["produto", "product", "item", "descricao", "nome"],
     "marca":     ["marca", "brand", "fabricante"],
-    "codigo":    ["codigo", "código", "code", "ref", "referencia", "referência", "sku"],
-    "aplicacao": ["aplicacao", "aplicação", "aplicavel", "aplicável", "compatib", "veiculo", "veículo"],
+    "codigo":    ["codigo", "code", "ref", "referencia", "sku", "cod"],
+    "aplicacao": ["aplicacao", "aplicavel", "compatib", "veiculo", "aplicac"],
 }
+
+
+def _norm(s):
+    """Remove acentos e normaliza para comparação de cabeçalhos."""
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', str(s).strip().lower())
+        if unicodedata.category(c) != 'Mn'
+    )
 # Fallback caso nenhum cabeçalho seja encontrado
 _COL_DEFAULTS = {"produto": 0, "marca": 1, "codigo": 2, "aplicacao": 3}
 
@@ -217,7 +226,7 @@ def detect_columns(header_rows):
     mapping = {}
     for row in header_rows:
         for col_idx, cell in enumerate(row):
-            cell_norm = str(cell).strip().lower()
+            cell_norm = _norm(cell)
             if not cell_norm or cell_norm in ("none", "nan"):
                 continue
             for field, keywords in _HEADER_KEYWORDS.items():
