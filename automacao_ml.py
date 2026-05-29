@@ -16,6 +16,7 @@ SETUP RÁPIDO:
 """
 
 import base64
+import datetime
 import io
 import os
 import pickle
@@ -233,6 +234,17 @@ def detect_columns(header_rows):
     return mapping
 
 
+def _xlsx_cell(c):
+    """Converte valor de célula xlsx para string, tratando datas formatadas como número."""
+    if c is None:
+        return ""
+    if isinstance(c, (datetime.datetime, datetime.date)):
+        from openpyxl.utils.datetime import to_excel
+        dt = c if isinstance(c, datetime.datetime) else datetime.datetime(c.year, c.month, c.day)
+        return str(int(to_excel(dt)))
+    return str(c)
+
+
 def _parse_rows(rows, col_map):
     """Converte linhas brutas em lista de produtos usando mapeamento dinâmico de colunas."""
     products = []
@@ -321,7 +333,7 @@ def read_products_from_spreadsheet(drive, sheets, file_info, sheets_filter=None)
 
             rows = []
             for row in ws.iter_rows(min_row=LINHA_INICIO, values_only=True):
-                rows.append([str(c) if c is not None else "" for c in row])
+                rows.append([_xlsx_cell(c) for c in row])
             found = _parse_rows(rows, col_map)
             if found:
                 print(f"       → Aba '{sheet_name}': {len(found)} produto(s)")

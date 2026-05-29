@@ -440,6 +440,8 @@ const App = (() => {
     btnCancel.disabled = true;
     const span = btnCancel.querySelector('span');
     if (span) span.textContent = 'Cancelando...';
+    // Fallback: força reset da UI se o SSE não entregar o evento 'cancelled'
+    setTimeout(() => { if (_running) finishCancelled(); }, 8000);
   }
 
   // ── Terminal ─────────────────────────────────────────────
