@@ -45,6 +45,7 @@ if not _APP_PASS:
     print("Senha: NÃO CONFIGURADA (Acesso livre)")
 else:
     print("Senha: CONFIGURADA")
+print("API Key Auth: CONFIGURADA" if _AUTOMACAO_API_KEY else "API Key Auth: DESATIVADA")
 print(f"------------------------------\n")
 
 _jobs: dict[str, queue.Queue] = {}
