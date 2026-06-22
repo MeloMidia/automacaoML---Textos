@@ -620,9 +620,7 @@ APLICACAO
 --------------------------------------------------
 INSTITUCIONAL
 
-A {client_name} oferece produtos de qualidade para abastecimento, manutenção e operação, disponibilizando soluções confiáveis para maior segurança e eficiência no dia a dia.
-
-Nosso compromisso é entregar produtos de procedência, envio rápido e atendimento de confiança, ajudando sua operação a manter desempenho, organização e segurança."""
+[Crie 2 frases originais apresentando a loja {client_name}. Mencione o nome da loja, fale sobre confiança, qualidade dos produtos e compromisso com o cliente. NUNCA repita o mesmo texto de outro anúncio — varie vocabulário, estrutura e ênfase a cada geração.]"""
 
     MAX_TENTATIVAS = 4
     for tentativa in range(1, MAX_TENTATIVAS + 1):
