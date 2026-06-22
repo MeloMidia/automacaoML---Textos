@@ -37,6 +37,7 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 _APP_USER    = os.getenv("APP_USER", "team").strip()
 _APP_PASS    = os.getenv("APP_PASSWORD", "").strip()
 _SECRET_KEY  = os.getenv("SECRET_KEY", secrets.token_hex(32)).strip()
+_AUTOMACAO_API_KEY = os.getenv("AUTOMACAO_ML_API_KEY", "").strip()
 
 print(f"\n--- CONFIGURAÇÃO DE ACESSO ---")
 print(f"Usuário: '{_APP_USER}'")
@@ -72,7 +73,13 @@ def _verify_token(token: str) -> bool:
         return False
 
 
-def require_session(session: str | None = Cookie(default=None)):
+def require_session(request: Request, session: str | None = Cookie(default=None)):
+    # Permite acesso via API Key (chamadas do sistemaMelo)
+    if _AUTOMACAO_API_KEY:
+        header_key = request.headers.get("X-API-Key", "")
+        if secrets.compare_digest(header_key.encode(), _AUTOMACAO_API_KEY.encode()):
+            return
+    # Fallback: auth por cookie (acesso direto ao frontend próprio)
     if not _APP_PASS:
         return  # sem senha configurada, permite acesso (útil em dev local)
     if not session or not _verify_token(session):
