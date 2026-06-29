@@ -382,6 +382,11 @@ def run_automation(body: dict, _: None = Depends(require_session)):
     if not selected:
         return {"ok": False, "error": "Nenhum cliente selecionado."}
 
+    sheets_filter = body.get("sheets_filter")
+    if sheets_filter:
+        for c in selected:
+            c["sheets"] = sheets_filter
+
     delay  = max(10, int(body.get("delay_seconds", 45)))
     job_id = str(uuid.uuid4())
     q: queue.Queue = queue.Queue()
