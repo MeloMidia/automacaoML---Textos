@@ -381,246 +381,117 @@ def _chamar_modelo(modelo, system_message, prompt):
 def generate_with_groq(product, client_name):
     """Gera o texto via IA com rotação automática de modelos (Gemini + Groq)."""
 
-    system_message = """Você é um especialista em SEO e copywriting para o Mercado Livre, criando anúncios de alta conversão para produtos industriais, automotivos e de abastecimento.
+    system_message = """Você é um especialista em criação de descrições profissionais para anúncios de autopeças no Mercado Livre.
+Sua função é criar uma descrição completa, clara, comercial, segura e otimizada para conversão, baseada no seu conhecimento técnico sobre o produto.
 
 REGRAS ABSOLUTAS — NUNCA QUEBRE:
 1. Responda SOMENTE com o conteúdo do anúncio. Zero introduções, zero "Aqui está", zero comentários.
 2. NUNCA use asteriscos (*), hashtags (#), aspas ou qualquer markdown.
-3. O título é uma frase SEO. NUNCA copie o nome bruto do produto como título.
-4. Escreva o título APENAS UMA VEZ, na linha após o rótulo "TITULO".
-5. NÃO existe seção VARIACAO. O anúncio tem apenas UM título.
-6. Nos dois parágrafos de texto, NUNCA use "nosso", "nossa", "nós". Sempre terceira pessoa.
-7. Na seção APLICACAO, use SOMENTE os dados fornecidos. NUNCA invente compatibilidades.
-8. Os dois parágrafos de texto devem ser técnicos e específicos ao produto. NUNCA genéricos."""
+3. Não invente informações técnicas, aplicações, anos, medidas, códigos ou compatibilidades.
+4. Não diga que o produto é original se isso não estiver confirmado.
+5. Use linguagem profissional, simples e confiável.
+6. Não use emojis.
+7. Sempre oriente o comprador a confirmar a compatibilidade antes da compra.
+8. Use títulos em letras maiúsculas.
+9. Use listas em tópicos com hífen.
+10. Não use tabelas.
+11. A descrição deve ser completa, mas objetiva e direta."""
 
     aplicacao = product['aplicacao'] if product['aplicacao'] else ''
 
-    prompt = f"""Crie um anúncio completo para o Mercado Livre. Siga o modelo abaixo EXATAMENTE.
-
-========================================================
-EXEMPLO REAL DE ANUNCIO BEM FEITO (use como referência de qualidade):
-========================================================
-
-DADOS DE ENTRADA DO EXEMPLO:
-Produto: FILTRO COMBUSTIVEL
-Marca: AUTHOMIX
-Codigo: FCO0507
-Aplicacao: CHEVROLET:
-S10 2.5 16V 14/
-
-CITROEN: 
-Aircross 1.6 16v 10/18, Berlingo 1.6
-16v 05/07, Berlingo 1.8 8v 97/03, C3
-1.2 12v 16/, C3 1.5 8v 14/16, C3 1.6
-16v 03/14, C3 Picasso 1.6 16v 11/16,
-C4 2.0 16v 09/13, C4 Lounge 1.6 16v
-13/18, C4 Pallas 2.0 16v 07/13
-
-FIAT:
-Mobi 1.0 8v 16/, Uno 1.0 6v 16/17
-
-HONDA:
-Civic 1.8 16v 11/14, Civic 2.0 16v
-13/17, Fit 1.4 16v 08/14, Fit 1.5 16v
-14/
-
-HYNDAI:
-HB20 1.0 12V / 1.6 16V 12/19
-
-KIA:
-Sportage 2.0 16v 12/16
-
-NISSAN:
-Grand Livina 1.8 16v 09/14, Livina 1.6
-16v 09/14, Kicks 1.6 16v 16/17, March
-1.0 16v 11/16, Sentra 2.0 16v 06/16,
-Versa 1.0 12v 15/, Tiida 1.8 16v 07/13,
-Versa 1.6 16v 11/
-
-PEGEOUT
-106 1.0 8V 92/05, 08 1.6 16V 15/19,
-206 1.4 8V 04/09, 205 1.4 8V 92/98,
-206 1.6 16V 00/08, 206 1.6 8V 99/03,
-207 1.4 8V 09/14, 207 1.6 16V 08/13,
-208 1.5 8V 13/16, 208 1.6 16V 14/18,
-3008 1.6 16V 10/17, 306 1.8 16V
-97/04
-
-RENAULT:
-Clio 1.0 16v 01/13, Clio 1.0 8v 99/06,
-Clio 1.6 16v 00/09, Clio 1.6 8v 98/02,
-Duster 1.6 /2.0 16v 11/18, Fluence 1.6
-16v 12/, Fluence 2.0 16v 11/, Gran
-Tour 1.6 16v 06/12, Kangoo 1.6 16v
-02/11
-
-VOLKSWAGEN:
-Cross Up! 1.0 12v 14/17, Gol 1.0 12v
-16/18, Gol 1.6 8v 08/15, Golf 1.0 12v
-16/18, Golf 1.6 16v 15/16, Golf 1.6
-8v 06/14, Kombi 1.4 8v 06/12, Polo
-1.6 8v 04/14, Polo 2.0 8v 08/12, Polo
-Sedan 1.6 8v 04/14, Saveiro 1.6 16v
-14/16
-
-SAIDA CORRETA DO EXEMPLO:
-
-TÍTULO (SEO Mercado Livre)
-
-Filtro Combustível Gol Voyage Polo Civic Hb20 S10
-
-DESCRIÇÃO COMPLETA (Padrão Escalada Ecom)
---------------------------------------------------
-O QUE VEM NA CAIXA
-- 01 Filtro de Combustível
-- Marca: AUTHOMIX
-- Código/Referência: FCO0507
---------------------------------------------------
-APLICAÇÃO
-
-CHEVROLET:
-- S10 2.5 16V 2014/
-
-CITROËN:
-- Aircross 1.6 16V 2010/2018
-- Berlingo 1.6 16V 2005/2007
-- Berlingo 1.8 8V 1997/2003
-- C3 1.2 12V 2016/
-- C3 1.5 8V 2014/2016
-- C3 1.6 16V 2003/2014
-- C3 Picasso 1.6 16V 2011/2016
-- C4 2.0 16V 2009/2013
-- C4 Lounge 1.6 16V 2013/2018
-- C4 Pallas 2.0 16V 2007/2013
-
-FIAT:
-- Mobi 1.0 8V 2016/
-- Uno 1.0 2016/2017
-
-HONDA:
-- Civic 1.8 16V 2011/2014
-- Civic 2.0 16V 2013/2017
-- Fit 1.4 16V 2008/2014
-- Fit 1.5 16V 2014/
-
-HYUNDAI:
-- HB20 1.0 12V / 1.6 16V 2012/2019
-
-KIA:
-- Sportage 2.0 16V 2012/2016
-
-NISSAN:
-- Grand Livina 1.8 16V 2009/2014
-- Livina 1.6 16V 2009/2014
-- Kicks 1.6 16V 2016/2017
-- March 1.0 16V 2011/2016
-- Sentra 2.0 16V 2006/2016
-- Versa 1.0 12V 2015/
-- Tiida 1.8 16V 2007/2013
-- Versa 1.6 16V 2011/
-
-PEUGEOT:
-- 106 1.0 8V 1992/2005
-- 208 1.6 16V 2014/2018
-- 3008 1.6 16V 2010/2017
-- 206, 207, 306 e demais modelos conforme aplicação
-
-RENAULT:
-- Clio 1.0 16V 2001/2013
-- Clio 1.0 8V 1999/2006
-- Duster 1.6 / 2.0 16V 2011/2018
-- Fluence 1.6 / 2.0 16V
-- Kangoo 1.6 16V 2002/2011
-
-VOLKSWAGEN:
-- Cross Up! 1.0 12V 2014/2017
-- Gol 1.0 12V 2016/2018
-- Gol 1.6 8V 2008/2015
-- Golf 1.0 / 1.6 2006/2018
-- Kombi 1.4 8V 2006/2012
-- Polo 1.6 / 2.0 2004/2014
-- Polo Sedan 1.6 8V 2004/2014
-- Saveiro 1.6 16V 2014/2016
---------------------------------------------------
-Mantenha o sistema de alimentação do motor protegido com o filtro de combustível AUTHOMIX. Desenvolvido para reter impurezas presentes no combustível, ajuda a preservar bicos injetores, bomba de combustível e demais componentes do sistema, contribuindo para melhor desempenho e funcionamento do veículo.
-
-A substituição periódica do filtro auxilia na prevenção de falhas, melhora a eficiência do motor e ajuda a manter o consumo adequado de combustível. Produzido com materiais de qualidade, oferece excelente filtragem e maior confiabilidade para o dia a dia.
---------------------------------------------------
-INSTITUCIONAL
-
-A EUnaPEÇAS trabalha com peças e acessórios automotivos de qualidade, oferecendo produtos confiáveis para manutenção, segurança e desempenho do seu veículo.
-
-Nosso compromisso é entregar produtos de procedência, envio rápido e atendimento de confiança, ajudando você a manter seu veículo sempre em excelente funcionamento.
-
-
-========================================================
-REGRAS DO TITULO (aprenda com o exemplo):
-- O título não é o nome do produto. É uma mistura coerencte de palavras-chave de busca otimizada.
-- Inclua especificações técnicas e/ou modelos compatíveis extraídos da APLICACAO.
-- Máximo 60 caracteres. Sem a marca. Sem o código.
-- RUIM: "LAMPADA H7 24V 100W CAMINHAO"  (nome bruto)
-- BOM: "Lampada H7 24V 100W Caminhao Truck Par Alta Potencia"  (especificações + contexto de busca)
-- RUIM: "FILTRO COMBUSTIVEL"  (genérico demais)
-- BOM: "Filtro Combustivel Gol Voyage Polo Clio Fit Civic 1.0 1.4"  (modelos compatíveis)
-
-========================================================
-REGRAS DA SECAO APLICACAO (aprenda com o exemplo):
-- Para produtos com aplicação vazia: liste usos, compatibilidades e especificações técnicas fazendo buscas do produto na internet.
-- Para autopeças com lista de veículos: agrupe por montadora e busque ano, modelo e  motor para cada um. Exemplo:
-  Volkswagen: 
-  - Gol 2010-2020 1.0 1.4 2.0
-  - Voyage 2010-2020 1.0 1.4 2.0
-  - Polo Golf 2010-2020 1.0 1.4 2.0
-  Fiat: 
-  - Uno 2010-2020 1.0 1.4
-  - Palio 2010-2020 1.0 1.4
-  - Siena 2010-2020 1.0 1.4
-  Honda: 
-  - Civic 2010-2020 1.0 1.4
-  - Fit 2010-2020 1.0 1.4
-
-- NUNCA escreva o código do produto na APLICACAO.
-
-========================================================
-REGRAS DOS PARAGRAFOS DE TEXTO (aprenda com o exemplo):
-- Parágrafo 1: explique o que é o produto, para que serve e qual problema resolve. 3 a 4 frases.
-- Parágrafo 2: detalhe materiais, especificações técnicas, certificações e diferenciais. 3 a 4 frases.
-- Ambos em terceira pessoa. Sem bullet points. Sem "nosso/nossa".
-- NUNCA escreva parágrafos genéricos que sirvam para qualquer produto.
-
-========================================================
-AGORA CRIE O ANUNCIO PARA:
+    prompt = f"""Crie um anúncio completo para o Mercado Livre com base nos dados abaixo.
+Use seu conhecimento técnico sobre o produto para complementar as informações fornecidas.
 
 DADOS DO PRODUTO:
 Produto: {product['produto']}
 Marca: {product['marca']}
 Codigo: {product['codigo']}
 Aplicacao: {aplicacao if aplicacao else 'Não informada'}
-Loja: {client_name}
 
-FORMATO OBRIGATORIO — copie os rótulos EXATAMENTE como no exemplo:
+========================================================
+REGRAS DO TITULO SEO:
+- O título é uma frase de busca otimizada, não o nome bruto do produto.
+- Inclua especificações técnicas e/ou modelos compatíveis.
+- Máximo 60 caracteres. Sem a marca. Sem o código.
+- RUIM: "FILTRO COMBUSTIVEL"
+- BOM: "Filtro Combustivel Gol Polo Civic HB20 Clio 1.0 1.4 1.6"
 
-TÍTULO (SEO Mercado Livre)
+REGRAS DA SECAO APLICACAO DO PRODUTO:
+- Use SOMENTE os dados de aplicação fornecidos. NUNCA invente compatibilidades.
+- Agrupe por montadora com tópicos. Inclua modelo, motor e anos quando disponíveis.
+- Ao final da seção, inclua SEMPRE esta observação:
+  A aplicação pode variar conforme versão, ano, motor ou configuração do veículo. Antes da compra, confira o código da peça antiga, as medidas e as fotos do anúncio.
+
+REGRAS DAS PERGUNTAS FREQUENTES:
+- Crie de 6 a 10 perguntas e respostas objetivas baseadas no produto.
+- Responda sempre com segurança, sem inventar informações.
+- Inclua perguntas como: serve no meu veículo, qual a marca, qual o código, o produto é novo, o que acompanha, precisa de mecânico, como confirmar compatibilidade.
+
+========================================================
+FORMATO OBRIGATORIO — copie os rótulos EXATAMENTE:
+
+TITULO (SEO Mercado Livre)
 
 [uma unica linha de titulo SEO]
 
-DESCRICAO COMPLETA (Padrao Ecom)
+DESCRICAO COMPLETA
 --------------------------------------------------
-O QUE VEM NA CAIXA
-- {product['produto']}
+O QUE VAI NA CAIXA
+
+- 01 {product['produto']}
+[se for kit, liste os itens separadamente com base no seu conhecimento técnico]
+--------------------------------------------------
+APLICACAO DO PRODUTO
+
+{('[aplicacao dos veiculos agrupada por montadora em topicos]') if not aplicacao else aplicacao}
+
+A aplicacao pode variar conforme versao, ano, motor ou configuracao do veiculo. Antes da compra, confira o codigo da peca antiga, as medidas e as fotos do anuncio.
+--------------------------------------------------
+DESCRICAO DO PRODUTO
+
+[abertura comercial curta: o que e o produto, para qual aplicacao e indicado e qual problema ele resolve. Tom direto e confiavel. 2 a 3 frases.]
+--------------------------------------------------
+CARACTERISTICAS PRINCIPAIS
+
+- Produto: {product['produto']}
 - Marca: {product['marca']}
 - Codigo/Referencia: {product['codigo']}
+[adicione: material, medidas, lado/posicao, condicao (novo), funcao da peca e especificacoes tecnicas relevantes que voce conhecer]
 --------------------------------------------------
-APLICACAO
-[bullets de aplicação/compatibilidade baseados nos dados fornecidos]
---------------------------------------------------
-[Paragrafo 1 — específico ao produto, explica uso e benefício]
+FUNCAO DA PECA
 
-[Paragrafo 2 — materiais, especificações técnicas, diferenciais]
+[explique de forma simples a funcao do produto no veiculo. Adapte ao tipo de peca: filtro, kit transmissao, sensor, bomba, suspensao, peca eletrica etc. 2 a 3 frases.]
 --------------------------------------------------
-INSTITUCIONAL
+BENEFICIOS
 
-[Crie 2 frases originais apresentando a loja {client_name}. Mencione o nome da loja, fale sobre confiança, qualidade dos produtos e compromisso com o cliente. NUNCA repita o mesmo texto de outro anúncio — varie vocabulário, estrutura e ênfase a cada geração.]"""
+- Ideal para reposicao
+- Auxilia na manutencao correta do veiculo
+- Ajuda a evitar falhas causadas por peca desgastada
+- Boa opcao para manutencao preventiva ou corretiva
+- Indicado para uso diario ou profissional
+- Bom custo-beneficio
+- Recomendado para oficinas, mecanicos e proprietarios
+--------------------------------------------------
+CUIDADOS IMPORTANTES
+
+- Confira a compatibilidade antes da compra
+- Verifique o codigo da peca antiga
+- Compare as fotos do anuncio com a peca instalada no veiculo
+- Confirme ano, modelo, motor e versao
+- Nao force a instalacao
+- Em caso de duvida, envie uma pergunta antes da compra
+--------------------------------------------------
+ENVIO E PRAZO DE ENTREGA
+
+O envio e realizado pelo Mercado Livre, conforme as opcoes disponiveis no momento da compra.
+O prazo de entrega e calculado automaticamente pela plataforma de acordo com o CEP informado pelo comprador.
+Apos a confirmacao do pagamento, o pedido sera separado e enviado com agilidade.
+--------------------------------------------------
+PERGUNTAS FREQUENTES
+
+[crie de 6 a 10 perguntas e respostas objetivas sobre este produto especifico]
+--------------------------------------------------
+Ainda esta com duvida sobre a compatibilidade? Envie sua pergunta antes da compra. Nossa equipe esta a disposicao para ajudar voce a escolher a peca correta para o seu veiculo."""
 
     MAX_TENTATIVAS = 4
     for tentativa in range(1, MAX_TENTATIVAS + 1):
