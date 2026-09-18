@@ -43,7 +43,11 @@ from googleapiclient.http import MediaIoBaseDownload
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
 # Modelo OpenAI a usar — pode sobrescrever via OPENAI_MODEL=... no .env
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2").strip()
+OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", OPENAI_MODEL).strip()
+WEB_RESEARCH_ENABLED = os.getenv("WEB_RESEARCH_ENABLED", "1").strip().lower() not in (
+    "0", "false", "nao", "n\u00e3o"
+)
 
 # ID da pasta MERCADO LIVRE no Google Drive (fixo — não precisa alterar)
 PASTA_RAIZ_ID = "1H7r7kvGIuuqZByHaAVXxvkHA64852_if"
@@ -378,6 +382,44 @@ def _chamar_modelo(modelo, system_message, prompt):
     return response.choices[0].message.content
 
 
+def _pesquisar_aplicacao_completa(product):
+    """Pesquisa compatibilidades e palavras-chave antes de gerar o anuncio final."""
+    if not OPENAI_API_KEY:
+        raise Exception("OPENAI_API_KEY nao configurada no .env")
+
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    aplicacao_planilha = product.get("aplicacao", "") or "Nao informada"
+    consulta = (
+        f"produto: {product.get('produto', '')}; "
+        f"marca: {product.get('marca', '')}; "
+        f"codigo/referencia: {product.get('codigo', '')}; "
+        f"aplicacao informada na planilha: {aplicacao_planilha}"
+    )
+
+    instructions = """Voce e um pesquisador tecnico de autopecas e SEO para comercio eletronico.
+Pesquise na web a aplicacao completa do produto informado.
+
+REGRAS:
+- Priorize catalogos de fabricantes, distribuidores, catalogos de autopecas e fontes tecnicas confiaveis.
+- Use o codigo/referencia como identificador principal e compare marca, produto, modelo, motor, versao e anos.
+- Separe claramente o que foi confirmado do que e incerto ou conflitante.
+- Nao invente compatibilidades e nao trate resultado de busca generico como confirmacao.
+- Retorne uma lista organizada por montadora, modelo, motor, versao e anos quando esses dados estiverem confirmados.
+- Retorne uma secao separada com palavras-chave relevantes: nome principal, sinonimos, nomes usados no mercado, codigos, modelos compativeis e termos de alta intencao de compra.
+- Use termos encontrados em catalogos, anuncios e fontes tecnicas; nao invente volume de busca nem use palavras-chave sem relacao comprovada com o produto.
+- Inclua as URLs das fontes usadas para cada grupo de compatibilidade.
+- Se nao encontrar confirmacao suficiente, diga isso explicitamente e preserve a aplicacao da planilha como referencia nao verificada.
+"""
+
+    response = client.responses.create(
+        model=OPENAI_RESEARCH_MODEL,
+        tools=[{"type": "web_search"}],
+        instructions=instructions,
+        input=f"Pesquise a aplicacao completa para:\n{consulta}",
+    )
+    return (response.output_text or "").strip()
+
+
 def generate_with_groq(product, client_name):
     """Gera o texto via IA com rotação automática de modelos (Gemini + Groq)."""
 
@@ -387,7 +429,7 @@ Sua função é criar uma descrição completa, clara, comercial, segura e otimi
 REGRAS ABSOLUTAS — NUNCA QUEBRE:
 1. Responda SOMENTE com o conteúdo do anúncio. Zero introduções, zero "Aqui está", zero comentários.
 2. NUNCA use asteriscos (*), hashtags (#), aspas ou qualquer markdown.
-3. Não invente informações técnicas, aplicações, anos, medidas, códigos ou compatibilidades.
+3. Não invente informações técnicas, aplicações, anos, medidas, códigos, compatibilidades ou palavras-chave. Para aplicações e palavras-chave, use somente a planilha e a pesquisa fornecida.
 4. Não diga que o produto é original se isso não estiver confirmado.
 5. Use linguagem profissional, simples e confiável.
 6. Não use emojis.
@@ -398,6 +440,19 @@ REGRAS ABSOLUTAS — NUNCA QUEBRE:
 11. A descrição deve ser completa, mas objetiva e direta."""
 
     aplicacao = product['aplicacao'] if product['aplicacao'] else ''
+    pesquisa_aplicacao = ''
+    if WEB_RESEARCH_ENABLED:
+        try:
+            print("     Pesquisando a aplicacao completa na web...")
+            pesquisa_aplicacao = _pesquisar_aplicacao_completa(product)
+            if pesquisa_aplicacao:
+                print("     Pesquisa de aplicacao concluida.")
+            else:
+                print("     Pesquisa nao retornou dados; usando a planilha.")
+        except Exception as e:
+            print(f"     Aviso: pesquisa de aplicacao indisponivel ({str(e)[:160]}).")
+
+    pesquisa_aplicacao = pesquisa_aplicacao or "Pesquisa indisponivel. Nao amplie a aplicacao alem do que consta na planilha."
 
     prompt = f"""Crie um anúncio completo para o Mercado Livre com base nos dados abaixo.
 Use seu conhecimento técnico sobre o produto para complementar as informações fornecidas.
@@ -409,15 +464,22 @@ Codigo: {product['codigo']}
 Aplicacao: {aplicacao if aplicacao else 'Não informada'}
 
 ========================================================
-REGRAS DO TITULO SEO:
-- O título é uma frase de busca otimizada, não o nome bruto do produto.
-- Inclua especificações técnicas e/ou modelos compatíveis.
-- Máximo 60 caracteres. Sem a marca. Sem o código.
+PESQUISA DE APLICACAO COMPLETA:
+{pesquisa_aplicacao}
+
+========================================================
+REGRAS DOS TITULOS SEO:
+- Gere dois títulos diferentes usando as palavras-chave pesquisadas, sem keyword stuffing.
+- TITULO CURTO: máximo de 60 caracteres, para o título principal do Mercado Livre. Seja direto e priorize produto, função e modelos compatíveis confirmados. Sem a marca e sem o código.
+- TITULO LONGO: máximo de 200 caracteres, mais completo e natural, podendo incluir marca, código, modelos, motores, anos e sinônimos confirmados.
+- Conte os caracteres antes de responder e nunca ultrapasse os limites.
+- Não repita o mesmo título nos dois campos.
 - RUIM: "FILTRO COMBUSTIVEL"
 - BOM: "Filtro Combustivel Gol Polo Civic HB20 Clio 1.0 1.4 1.6"
 
 REGRAS DA SECAO APLICACAO DO PRODUTO:
-- Use SOMENTE os dados de aplicação fornecidos. NUNCA invente compatibilidades.
+- Use a aplicação da planilha como base e complemente somente com compatibilidades confirmadas na pesquisa acima.
+- NUNCA transforme uma possibilidade, conflito ou resultado genérico em compatibilidade confirmada.
 - Agrupe por montadora com tópicos. Inclua modelo, motor e anos quando disponíveis.
 - Ao final da seção, inclua SEMPRE esta observação:
   A aplicação pode variar conforme versão, ano, motor ou configuração do veículo. Antes da compra, confira o código da peça antiga, as medidas e as fotos do anúncio.
@@ -430,9 +492,13 @@ REGRAS DAS PERGUNTAS FREQUENTES:
 ========================================================
 FORMATO OBRIGATORIO — copie os rótulos EXATAMENTE:
 
-TITULO (SEO Mercado Livre)
+TITULO CURTO (ATÉ 60 CARACTERES)
 
-[uma unica linha de titulo SEO]
+[uma unica linha com no maximo 60 caracteres]
+
+TITULO LONGO (ATÉ 200 CARACTERES)
+
+[uma unica linha com no maximo 200 caracteres]
 
 DESCRICAO COMPLETA
 --------------------------------------------------
