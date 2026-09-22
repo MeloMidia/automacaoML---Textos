@@ -43,7 +43,7 @@ from googleapiclient.http import MediaIoBaseDownload
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
 # Modelo OpenAI a usar — pode sobrescrever via OPENAI_MODEL=... no .env
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2").strip()
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
 OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", OPENAI_MODEL).strip()
 WEB_RESEARCH_ENABLED = os.getenv("WEB_RESEARCH_ENABLED", "1").strip().lower() not in (
     "0", "false", "nao", "n\u00e3o"
