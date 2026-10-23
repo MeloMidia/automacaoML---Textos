@@ -43,8 +43,10 @@ from googleapiclient.http import MediaIoBaseDownload
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 
 # Modelo OpenAI a usar — pode sobrescrever via OPENAI_MODEL=... no .env
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
-OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", OPENAI_MODEL).strip()
+# Texto/títulos num modelo que segue bem as regras; a pesquisa na web (a parte cara,
+# por causa das buscas) fica num modelo barato.
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2").strip()
+OPENAI_RESEARCH_MODEL = os.getenv("OPENAI_RESEARCH_MODEL", "gpt-4o-mini").strip()
 WEB_RESEARCH_ENABLED = os.getenv("WEB_RESEARCH_ENABLED", "1").strip().lower() not in (
     "0", "false", "nao", "n\u00e3o"
 )
@@ -420,6 +422,82 @@ REGRAS:
     return (response.output_text or "").strip()
 
 
+def _chave(texto):
+    """Letras e números minúsculos, sem acento nem pontuação/espaço."""
+    return re.sub(r"[^\w]|_", "", _norm(texto))
+
+
+def _remover_termo(titulo, termo):
+    """Tira o termo do título comparando palavras inteiras, sem diferenciar acento,
+    maiúscula, hífen ou espaço — 'Magneti-Marelli' casa com 'MAGNETI MARELLI' e
+    '0261210170' com '0 261 210 170'."""
+    palavras, achou = _separar_termo(titulo, termo)
+    return " ".join(palavras).strip(" ,-–") if achou else titulo
+
+
+def _separar_termo(texto, termo):
+    """Retorna (palavras do texto sem o termo, se o termo apareceu)."""
+    palavras = texto.split()
+    alvo = _chave(termo)
+    if len(alvo) < 2:
+        return palavras, False
+
+    chaves = [_chave(p) for p in palavras]
+    resultado = []
+    i = 0
+    while i < len(palavras):
+        tamanho = 0
+        juntas = ""
+        for j in range(i, len(palavras)):
+            juntas += chaves[j]
+            if juntas == alvo:
+                tamanho = j - i + 1
+                break
+            if not alvo.startswith(juntas):
+                break
+        if tamanho:
+            i += tamanho
+            continue
+        resultado.append(palavras[i])
+        i += 1
+    return resultado, len(resultado) < len(palavras)
+
+
+def _ajustar_titulos(content, product):
+    """Garante as regras dos títulos mesmo se o modelo errar: nenhum dos dois com a
+    marca, e o curto sem o código.
+
+    Se a marca também for montadora citada na aplicação (ex.: peça original Fiat),
+    ela fica — ali o nome é do veículo, não da marca da peça.
+    """
+    marca = (product.get("marca") or "").strip()
+    if _separar_termo(product.get("aplicacao") or "", marca)[1]:
+        marca = ""
+    codigo = (product.get("codigo") or "").strip()
+    if codigo.upper() == "SEM" or len(_chave(codigo)) < 3:
+        codigo = ""
+
+    linhas = content.splitlines()
+    procurando = None
+    for i, linha in enumerate(linhas):
+        rotulo = _norm(linha.strip())
+        if rotulo.startswith("titulo curto") or rotulo.startswith("titulo longo"):
+            procurando = rotulo[:12]
+            continue
+        if procurando and linha.strip():
+            titulo = linha.strip()
+            proibidos = [("marca", marca)] + ([("codigo", codigo)] if procurando == "titulo curto" else [])
+            for nome, termo in proibidos:
+                if termo:
+                    limpo = _remover_termo(titulo, termo)
+                    if limpo != titulo:
+                        print(f"     {nome.capitalize()} '{termo}' removido(a) do {procurando}.")
+                        titulo = limpo
+            linhas[i] = titulo
+            procurando = None
+    return "\n".join(linhas)
+
+
 def generate_with_groq(product, client_name):
     """Gera o texto via IA com rotação automática de modelos (Gemini + Groq)."""
 
@@ -470,8 +548,9 @@ PESQUISA DE APLICACAO COMPLETA:
 ========================================================
 REGRAS DOS TITULOS SEO:
 - Gere dois títulos diferentes usando as palavras-chave pesquisadas, sem keyword stuffing.
+- NUNCA coloque a marca do produto ({product['marca'] or 'informada na planilha'}) em nenhum dos dois títulos. A marca aparece só na descrição.
 - TITULO CURTO: máximo de 60 caracteres, para o título principal do Mercado Livre. Seja direto e priorize produto, função e modelos compatíveis confirmados. Sem a marca e sem o código.
-- TITULO LONGO: máximo de 200 caracteres, mais completo e natural, podendo incluir marca, código, modelos, motores, anos e sinônimos confirmados.
+- TITULO LONGO: máximo de 200 caracteres, mais completo e natural, podendo incluir código, modelos, motores, anos e sinônimos confirmados. Sem a marca.
 - Conte os caracteres antes de responder e nunca ultrapasse os limites.
 - Não repita o mesmo título nos dois campos.
 - RUIM: "FILTRO COMBUSTIVEL"
@@ -562,7 +641,7 @@ Ainda esta com duvida sobre a compatibilidade? Envie sua pergunta antes da compr
     MAX_TENTATIVAS = 4
     for tentativa in range(1, MAX_TENTATIVAS + 1):
         try:
-            return _chamar_modelo(OPENAI_MODEL, system_message, prompt)
+            return _ajustar_titulos(_chamar_modelo(OPENAI_MODEL, system_message, prompt), product)
         except (APIConnectionError, APITimeoutError) as e:
             espera = 15
             print(f"\n  ⏳ Erro de conexão ({str(e)[:50]}...) — aguardando {espera}s "
