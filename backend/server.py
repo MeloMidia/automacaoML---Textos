@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import traceback
+import urllib.request
 import uuid
 from pathlib import Path
 
@@ -52,6 +53,21 @@ _jobs: dict[str, queue.Queue] = {}
 _running = False
 _proc: "subprocess.Popen | None" = None
 _cancel_requested = False
+
+# No plano Free do Render o serviço é desligado após 15 min sem receber
+# requisições — e a automação, rodando em segundo plano, não recebe nenhuma
+# (morria por volta do 20º produto). Enquanto ela roda, o servidor chama a
+# própria URL pública pra continuar acordado. RENDER_EXTERNAL_URL vem do Render.
+_KEEPALIVE_URL = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
+_KEEPALIVE_SECONDS = 240
+
+
+def _keepalive(stop: threading.Event):
+    while not stop.wait(_KEEPALIVE_SECONDS):
+        try:
+            urllib.request.urlopen(f"{_KEEPALIVE_URL}/healthz", timeout=30).close()
+        except Exception as exc:
+            print(f"Keep-alive falhou: {exc}", flush=True)
 
 
 # ── Sessão simples via cookie assinado ─────────────────────────────────────
@@ -344,6 +360,11 @@ def serve_index(_: None = Depends(require_session)):
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
+
+
 @app.get("/api/clients")
 def get_clients(_: None = Depends(require_session)):
     try:
@@ -396,6 +417,9 @@ def run_automation(body: dict, _: None = Depends(require_session)):
         global _running, _proc, _cancel_requested
         _running = True
         _cancel_requested = False
+        stop_keepalive = threading.Event()
+        if _KEEPALIVE_URL:
+            threading.Thread(target=_keepalive, args=(stop_keepalive,), daemon=True).start()
         try:
             config_json = json.dumps({"clients": selected, "delay": delay})
             env = {**__import__("os").environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1"}
@@ -447,6 +471,7 @@ def run_automation(body: dict, _: None = Depends(require_session)):
                 q.put({"type": "log", "text": line})
             q.put({"type": "error", "message": str(exc)})
         finally:
+            stop_keepalive.set()
             _proc = None
             _running = False
 
