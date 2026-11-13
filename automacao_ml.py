@@ -140,10 +140,19 @@ def find_folder_by_name(drive, name, parent_id):
 
 
 def list_subfolders(drive, parent_id):
-    """Lista todas as subpastas de uma pasta."""
+    """Lista todas as subpastas de uma pasta (o Drive devolve no máximo 100 por página)."""
     q = f"mimeType='application/vnd.google-apps.folder' and '{parent_id}' in parents and trashed=false"
-    r = drive.files().list(q=q, fields="files(id,name)", orderBy="name").execute()
-    return r.get("files", [])
+    folders = []
+    page_token = None
+    while True:
+        kwargs = dict(q=q, fields="nextPageToken, files(id,name)", orderBy="name", pageSize=1000)
+        if page_token:
+            kwargs["pageToken"] = page_token
+        r = drive.files().list(**kwargs).execute()
+        folders.extend(r.get("files", []))
+        page_token = r.get("nextPageToken")
+        if not page_token:
+            return folders
 
 
 def find_main_spreadsheet(drive, parent_id):

@@ -24,6 +24,7 @@ from fastapi import Cookie, Depends, FastAPI, Form, Request, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 ROOT         = Path(__file__).resolve().parent.parent
 RUNNER       = Path(__file__).resolve().parent / "runner.py"
@@ -365,13 +366,50 @@ def healthz():
     return {"ok": True}
 
 
+# Pastas que já se sabe estarem dentro de MERCADO LIVRE: a raiz e tudo o que foi
+# listado a partir dela. Navegar pasta a pasta nunca precisa subir a árvore.
+_inside_root: set[str] = {aml.PASTA_RAIZ_ID}
+_MAX_DEPTH = 10
+
+
+def _is_inside_root(drive, folder_id: str) -> bool:
+    if folder_id in _inside_root:
+        return True
+    chain = []
+    current = folder_id
+    for _ in range(_MAX_DEPTH):
+        try:
+            meta = drive.files().get(fileId=current, fields="parents").execute()
+        except HttpError:
+            return False
+        chain.append(current)
+        parents = meta.get("parents") or []
+        if not parents:
+            return False
+        current = parents[0]
+        if current in _inside_root:
+            _inside_root.update(chain)
+            return True
+    return False
+
+
 @app.get("/api/clients")
-def get_clients(_: None = Depends(require_session)):
+def get_clients(parent_id: str | None = None, _: None = Depends(require_session)):
+    """Subpastas de uma pasta de MERCADO LIVRE (a própria raiz sem parent_id).
+    A pasta TEXTOS fica de fora: é onde a automação grava os textos."""
     try:
-        creds   = aml.get_credentials()
-        drive   = build("drive", "v3", credentials=creds)
-        clients = aml.list_subfolders(drive, aml.PASTA_RAIZ_ID)
-        return {"ok": True, "clients": clients}
+        creds     = aml.get_credentials()
+        drive     = build("drive", "v3", credentials=creds)
+        folder_id = parent_id or aml.PASTA_RAIZ_ID
+        if not _is_inside_root(drive, folder_id):
+            return {"ok": False, "error": "Essa pasta não fica dentro da pasta MERCADO LIVRE."}
+        folder  = drive.files().get(fileId=folder_id, fields="id,name").execute()
+        clients = [
+            f for f in aml.list_subfolders(drive, folder_id)
+            if f["name"].strip().upper() != "TEXTOS"
+        ]
+        _inside_root.update(f["id"] for f in clients)
+        return {"ok": True, "folder": folder, "clients": clients}
     except SystemExit:
         return {"ok": False, "error": "credentials.json não encontrado."}
     except Exception as e:
