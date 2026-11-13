@@ -155,15 +155,20 @@ def list_subfolders(drive, parent_id):
             return folders
 
 
-def find_main_spreadsheet(drive, parent_id):
-    """Encontra a planilha principal na pasta do cliente."""
+def list_spreadsheets(drive, parent_id):
+    """Planilhas (Google Sheets ou .xlsx) direto dentro de uma pasta."""
     q = (
         f"(mimeType='application/vnd.google-apps.spreadsheet' or "
         f"mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') "
         f"and '{parent_id}' in parents and trashed=false"
     )
     r = drive.files().list(q=q, fields="files(id,name,mimeType)").execute()
-    files = r.get("files", [])
+    return r.get("files", [])
+
+
+def find_main_spreadsheet(drive, parent_id):
+    """Encontra a planilha principal na pasta do cliente."""
+    files = list_spreadsheets(drive, parent_id)
     if not files:
         return None
     # Prefere arquivos que não sejam "PLANILHA DANI" (ajuste se precisar)

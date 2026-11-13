@@ -422,11 +422,17 @@ def get_sheets(client_id: str, _: None = Depends(require_session)):
         creds  = aml.get_credentials()
         drive  = build("drive",  "v3", credentials=creds)
         sheets = build("sheets", "v4", credentials=creds)
-        spreadsheet = aml.find_main_spreadsheet(drive, client_id)
-        if not spreadsheet:
+        files = aml.list_spreadsheets(drive, client_id)
+        if not files:
             return {"ok": True, "sheets": []}
+        spreadsheet = files[0]  # a mesma que find_main_spreadsheet escolhe na execução
         names = aml.get_sheet_names(drive, sheets, spreadsheet)
-        return {"ok": True, "sheets": names}
+        return {
+            "ok": True,
+            "spreadsheet": spreadsheet["name"],
+            "spreadsheet_count": len(files),
+            "sheets": names,
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
